@@ -1,6 +1,6 @@
 build:
-	gcc *.c
+	gcc src/*.c
 
 run:
-	gcc *.c
+	gcc src/*.c
 	./a.out
