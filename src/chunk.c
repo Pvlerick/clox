@@ -1,3 +1,5 @@
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "chunk.h"
@@ -36,6 +38,19 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line) {
 int addConstant(Chunk *chunk, Value value) {
   writeValueArray(&chunk->consants, value);
   return chunk->consants.count - 1;
+}
+
+void writeConstant(Chunk *chunk, Value value, int line) {
+  int constant = addConstant(chunk, value);
+  if (constant < 256) {
+    writeChunk(chunk, OP_CONSTANT, line);
+    writeChunk(chunk, constant, line);
+  } else {
+    writeChunk(chunk, OP_CONSTANT_LONG, line);
+    uint8_t *addr = (uint8_t *)&constant;
+    writeChunk(chunk, *addr, line);
+    writeChunk(chunk, *(addr + 1), line);
+  }
 }
 
 int getLine(Chunk *chunk, int offset) {
