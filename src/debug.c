@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 
 #include "chunk.h"
@@ -16,11 +17,19 @@ static int simpleInstruction(const char *name, int offset) {
 }
 
 static int constantInstruction(const char *name, Chunk *chunk, int offset) {
-  uint8_t constantIndex = chunk->code[offset + 1];
-  printf("%-16s %4d '", name, constantIndex);
-  printValue(chunk->consants.values[constantIndex]);
+  uint8_t codeIndex = chunk->code[offset + 1];
+  printf("%-16s %4d '", name, codeIndex);
+  printValue(chunk->consants.values[codeIndex]);
   printf("'\n");
   return offset + 2;
+}
+
+static int longConstantInstruction(const char *name, Chunk *chunk, int offset) {
+  uint16_t *codeIndex = (uint16_t *)&chunk->code[offset + 1];
+  printf("%-16s %4d '", name, *codeIndex);
+  printValue(chunk->consants.values[*codeIndex]);
+  printf("'\n");
+  return offset + 3;
 }
 
 int disassembleInstruction(Chunk *chunk, int offset) {
@@ -38,6 +47,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
   switch (instruction) {
   case OP_CONSTANT:
     return constantInstruction("OP_CONSTANT", chunk, offset);
+  case OP_CONSTANT_LONG:
+    return longConstantInstruction("OP_CONSTANT_LONG", chunk, offset);
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
   default:
