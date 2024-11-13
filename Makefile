@@ -9,8 +9,8 @@ run:
 	$(MAKE) build
 	./clox
 
-mmm:
-	gcc -D MANUAL_MEMORY_MANAGEMENT -o clox src/main.c $(objects)
+debug:
+	gcc -D MANUAL_MEMORY_MANAGEMENT -D DEBUG -o clox src/main.c $(objects)
 	./clox
 
 test-mmm:

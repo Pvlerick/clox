@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -55,4 +56,19 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;
   }
+}
+
+int debug(const char *format, ...) {
+#ifdef DEBUG
+  va_list arg;
+  int done;
+
+  va_start(arg, format);
+  done = vfprintf(stdout, format, arg);
+  va_end(arg);
+
+  return done;
+#else
+  return 0;
+#endif
 }

@@ -1,4 +1,5 @@
 #include "memory.h"
+#include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,8 +19,8 @@ const int HEAP_SIZE = 1 << 16;
 Heap heap = {.first = NULL};
 
 void initHeap() {
-  printf("MEM: heap block size: %lu\n", sizeof(HeapBlock));
-  printf("MEM: allocating %d bytes for heap\n", HEAP_SIZE);
+  debug("MEM: heap block size: %lu\n", sizeof(HeapBlock));
+  debug("MEM: allocating %d bytes for heap\n", HEAP_SIZE);
 
   void *heapStart = malloc(HEAP_SIZE);
 
@@ -37,7 +38,7 @@ void *memAlloc(size_t size) {
   if (heap.first == NULL)
     initHeap();
 
-  printf("MEM: allocating %zu bytes\n", size);
+  debug("MEM: allocating %zu bytes\n", size);
 
   HeapBlock *firstSuitable = heap.first;
   while (!(firstSuitable->isFree &&
@@ -196,21 +197,21 @@ void *memRealloc(void *pointer, size_t newSize) {
 }
 
 void dumpHeapBlock(HeapBlock *block) {
-  printf("=== Heap Block Dump\n");
-  printf("Address: %p\n", block);
-  printf("Size: %zu\n", block->size);
-  printf("IsFree: %b\n", block->isFree);
-  printf("Content: %p\n", block->content);
-  printf("Previous: %p\n", block->previous);
-  printf("Next: %p\n", block->next);
-  printf("=== End Heap Block Dump\n");
+  debug("=== Heap Block Dump\n");
+  debug("Address: %p\n", block);
+  debug("Size: %zu\n", block->size);
+  debug("IsFree: %b\n", block->isFree);
+  debug("Content: %p\n", block->content);
+  debug("Previous: %p\n", block->previous);
+  debug("Next: %p\n", block->next);
+  debug("=== End Heap Block Dump\n");
 }
 
 void dumpHeap() {
   if (heap.first == NULL)
     initHeap();
 
-  printf("== Heap Dump\n");
+  debug("== Heap Dump\n");
 
   HeapBlock *current = heap.first;
   while (current != NULL) {
@@ -218,7 +219,7 @@ void dumpHeap() {
     current = current->next;
   }
 
-  printf("== End Heap Dump\n");
+  debug("== End Heap Dump\n");
 }
 
 #endif
