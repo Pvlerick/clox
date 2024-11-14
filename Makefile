@@ -10,7 +10,7 @@ run:
 	./clox
 
 debug:
-	gcc -D MANUAL_MEMORY_MANAGEMENT -D DEBUG -o clox src/main.c $(objects)
+	gcc -D MANUAL_MEMORY_MANAGEMENT -D DEBUG -D DEBUG_TRACE_MEMORY -D DEBUG_TRACE_EXECUTION -o clox src/main.c $(objects)
 	./clox
 
 test-mmm:

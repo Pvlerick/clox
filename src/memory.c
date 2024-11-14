@@ -40,7 +40,7 @@ void *memAlloc(size_t size) {
   if (heap.first == NULL)
     initHeap();
 
-#ifdef DEBUG
+#ifdef DEBUG_TRACE_MEMORY
   checkHeapIntegrity();
 #endif
 
@@ -86,7 +86,7 @@ void memFree(void *pointer) {
     exit(1);
   }
 
-#ifdef DEBUG
+#ifdef DEBUG_TRACE_MEMORY
   checkHeapIntegrity();
 #endif
 
@@ -139,7 +139,7 @@ void *memRealloc(void *pointer, size_t newSize) {
   if (heap.first == NULL)
     initHeap();
 
-#ifdef DEBUG
+#ifdef DEBUG_TRACE_MEMORY
   checkHeapIntegrity();
 #endif
 

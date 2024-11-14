@@ -2,6 +2,7 @@
 #define clox_vm_h
 
 #include "chunk.h"
+#include "debug.h"
 
 typedef struct {
   Chunk* chunk;

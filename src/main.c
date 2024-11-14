@@ -1,5 +1,4 @@
 #include "chunk.h"
-#include "debug.h"
 #include "vm.h"
 
 int main(int argc, const char *argv[]) {
@@ -13,8 +12,6 @@ int main(int argc, const char *argv[]) {
   }
 
   writeChunk(&chunk, OP_RETURN, 52);
-
-  disassembleChunk(&chunk, "test chunk");
 
   interpret(&chunk);
 
