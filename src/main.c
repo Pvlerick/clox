@@ -8,8 +8,8 @@ int main(int argc, const char *argv[]) {
   Chunk chunk;
   initChunk(&chunk);
 
-  for (int i = 0; i < 300; i++) {
-    writeConstant(&chunk, i + 0.2, i);
+  for (int i = 0; i < 3; i++) {
+    writeConstant(&chunk, i + 0.2, i + 10);
   }
 
   writeChunk(&chunk, OP_RETURN, 52);

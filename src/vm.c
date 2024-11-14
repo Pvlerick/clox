@@ -13,14 +13,10 @@ static InterpretResult run() {
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 #define READ_LONG_CONSTANT()                                                   \
   ({                                                                           \
-    uint16_t *codeIndex = (uint16_t *)(*vm.ip);                                \
-    printf("index: %hu", *codeIndex);                                          \
-    READ_BYTE();                                                               \
-    READ_BYTE();                                                               \
+    uint16_t *codeIndex = (uint16_t *)&vm.ip[0];                               \
+    vm.ip += 2;                                                                \
     vm.chunk->constants.values[*codeIndex];                                    \
   })
-  // uint16_t *codeIndex = (uint16_t *)&chunk->code[offset + 1];
-  // printf("index: %hu", *codeIndex);
 
   for (;;) {
     uint8_t instruction;
@@ -31,13 +27,12 @@ static InterpretResult run() {
       printf("\n");
       break;
     }
-    // case OP_CONSTANT_LONG: {
-    //   printf("long const\n");
-    //   Value constant = READ_LONG_CONSTANT();
-    //   printValue(constant);
-    //   printf("\n");
-    //   break;
-    // }
+    case OP_CONSTANT_LONG: {
+      Value constant = READ_LONG_CONSTANT();
+      printValue(constant);
+      printf("\n");
+      break;
+    }
     case OP_RETURN: {
       return INTERPRET_OK;
     }
