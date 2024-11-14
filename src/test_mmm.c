@@ -1,8 +1,10 @@
+#ifndef MANUAL_MEMORY_MANAGEMENT
+#define MANUAL_MEMORY_MANAGEMENT 1
+#endif
+
 #include "memory.h"
 #include "testing.h"
 #include <stdio.h>
-
-#define MANUAL_MEMORY_MANAGEMENT 1;
 
 typedef struct s {
   bool isFull;
@@ -10,67 +12,67 @@ typedef struct s {
 } TestStruct;
 
 void testAllocateSimple() {
-  printf("=== testAllocateSimple\n");
+  printf("====== AllocateSimple\n");
 
   void *ptr1 = memAlloc(42);  // 40 + 42 = 82
   void *ptr2 = memAlloc(80);  // 40 + 80 = 120
   void *ptr3 = memAlloc(100); // 40 + 100 = 140
 
-  // dumpHeap();
+  dumpHeap();
 
   ASSERT_EQ_PTR(ptr2, ptr1 + 82);
   ASSERT_EQ_PTR(ptr3, ptr1 + 202);
 }
 
 void testAllocateThenFree() {
-  printf("=== testAllocateThenFree\n");
+  printf("====== AllocateThenFree\n");
 
   void *ptr = memAlloc(100);
   memFree(ptr);
 
-  // dumpHeap();
+  dumpHeap();
 }
 
 void testAllocateThenFreeInvalid() {
-  printf("=== testAllocateThenFreeInvalid\n");
+  printf("====== AllocateThenFreeInvalid\n");
 
   void *ptr = memAlloc(100);
   memFree(ptr + 5);
 }
 
 void testAllocateThenFreeThenAllocateSameSize() {
-  printf("=== testAllocateThenFreeThenAllocateSameSize\n");
+  printf("====== AllocateThenFreeThenAllocateSameSize\n");
 
   void *ptr1 = memAlloc(42);
   void *ptr2 = memAlloc(80);
   void *ptr3 = memAlloc(100);
   memFree(ptr2);
 
-  // dumpHeap();
+  dumpHeap();
 
   void *ptr4 = memAlloc(80);
 
-  // dumpHeap();
+  dumpHeap();
 }
 
 void testAllocateThenFreeThenAllocateSmaller() {
-  printf("=== testAllocateThenFreeThenAllocateSmaller\n");
+  printf("====== AllocateThenFreeThenAllocateSmaller\n");
 
   void *ptr1 = memAlloc(42);
   void *ptr2 = memAlloc(80);
   void *ptr3 = memAlloc(100);
   memFree(ptr2);
 
-  // dumpHeap();
+  dumpHeap();
 
   void *ptr4 = memAlloc(10);
   void *ptr5 = memAlloc(29); // Will allocate a new block at the end
 
-  // dumpHeap();
+  dumpHeap();
 }
 
 void testAllocateThenFreeFirstTwo() {
-  printf("=== testAllocateThenFreeFirstOfTwo\n");
+  printf("====== AllocateThenFreeFirstOfTwo\n");
 
   void *ptr1 = memAlloc(75);
   void *ptr2 = memAlloc(150);
@@ -78,11 +80,11 @@ void testAllocateThenFreeFirstTwo() {
   memFree(ptr1);
   memFree(ptr2);
 
-  // dumpHeap();
+  dumpHeap();
 }
 
 void testAllocateThenFreeSecondThenFirst() {
-  printf("=== testAllocateThenFreeSecondOfTwo\n");
+  printf("====== AllocateThenFreeSecondOfTwo\n");
 
   void *ptr1 = memAlloc(30);
   void *ptr2 = memAlloc(60);
@@ -90,11 +92,11 @@ void testAllocateThenFreeSecondThenFirst() {
   memFree(ptr2);
   memFree(ptr1);
 
-  // dumpHeap();
+  dumpHeap();
 }
 
 void testAllocateThenFreeAll() {
-  printf("=== testAllocateThenFreeAll\n");
+  printf("====== AllocateThenFreeAll\n");
 
   void *ptr1 = memAlloc(30);
   void *ptr2 = memAlloc(60);
@@ -102,25 +104,25 @@ void testAllocateThenFreeAll() {
   void *ptr4 = memAlloc(200);
   void *ptr5 = memAlloc(400);
 
-  // dumpHeap();
+  dumpHeap();
 
   memFree(ptr1);
   memFree(ptr2);
 
-  // dumpHeap();
+  dumpHeap();
 
   memFree(ptr3);
   memFree(ptr4);
 
-  // dumpHeap();
+  dumpHeap();
 
   memFree(ptr5);
 
-  // dumpHeap();
+  dumpHeap();
 }
 
 void testReallocateSimple() {
-  printf("=== testReallocateSimple\n");
+  printf("====== ReallocateSimple\n");
 
   void *ptr = memAlloc(100);
 
@@ -132,7 +134,7 @@ void testReallocateSimple() {
 }
 
 void testReallocateOnlyOneByteOnTop() {
-  printf("=== testReallocateOnlyOneByteOnTop\n");
+  printf("====== ReallocateOnlyOneByteOnTop\n");
 
   void *ptr1 = memAlloc(100);
   void *ptr2 = memAlloc(101);
@@ -148,7 +150,7 @@ void testReallocateOnlyOneByteOnTop() {
 }
 
 void testReallocateNextBlockHasExactlyTheRightSize() {
-  printf("=== testReallocateNextBlockHasExactlyTheRightSize\n");
+  printf("====== ReallocateNextBlockHasExactlyTheRightSize\n");
 
   void *ptr1 = memAlloc(100);
   void *ptr2 = memAlloc(60);
@@ -161,7 +163,7 @@ void testReallocateNextBlockHasExactlyTheRightSize() {
 }
 
 void testReallocateNextIsFreeButTooSmall() {
-  printf("=== testReallocateNextIsFreeButTooSmall\n");
+  printf("====== ReallocateNextIsFreeButTooSmall\n");
 
   void *ptr1 = memAlloc(100);
   void *ptr2 = memAlloc(59);
@@ -176,7 +178,7 @@ void testReallocateNextIsFreeButTooSmall() {
 }
 
 void testReallocateNextIsNotFree() {
-  printf("=== testReallocateNextIsNotFree\n");
+  printf("====== ReallocateNextIsNotFree\n");
 
   void *ptr1 = memAlloc(200);
   void *ptr2 = memAlloc(40);
@@ -189,7 +191,7 @@ void testReallocateNextIsNotFree() {
 }
 
 void testReallocateWayTooMuch() {
-  printf("=== testReallocateWayTooMuch\n");
+  printf("====== ReallocateWayTooMuch\n");
 
   void *ptr = memAlloc(100);
 
@@ -197,7 +199,7 @@ void testReallocateWayTooMuch() {
 }
 
 void testReallocateSameSize() {
-  printf("=== testReallocateSameSize\n");
+  printf("====== ReallocateSameSize\n");
 
   void *ptr1 = memAlloc(200);
   void *ptr2 = memRealloc(ptr1, 200);
@@ -206,7 +208,7 @@ void testReallocateSameSize() {
 }
 
 void testReallocateSmaller() {
-  printf("=== testReallocateSmaller\n");
+  printf("====== ReallocateSmaller\n");
 
   void *ptr1 = memAlloc(200);
   void *ptr2 = memRealloc(ptr1, 100);
@@ -217,7 +219,7 @@ void testReallocateSmaller() {
 }
 
 void testReallocateFreedIsTooSmall() {
-  printf("=== testReallocateFreedIsTooSmall\n");
+  printf("====== ReallocateFreedIsTooSmall\n");
 
   void *ptr1 = memAlloc(200);
   void *ptr2 = memAlloc(50);
@@ -229,7 +231,7 @@ void testReallocateFreedIsTooSmall() {
 }
 
 void testReallocateEnoughForNewBlockAfter() {
-  printf("=== testReallocateEnoughForNewBlockAfter\n");
+  printf("====== ReallocateEnoughForNewBlockAfter\n");
 
   void *ptr1 = memAlloc(200);
   void *ptr2 = memAlloc(50);
@@ -240,30 +242,65 @@ void testReallocateEnoughForNewBlockAfter() {
   ASSERT_EQ_PTR(ptr1, ptr3);
 }
 
+void testCustom() {
+  printf("====== Custom\n");
+
+  void *ptr1 = memAlloc(64);
+  void *ptr2 = memAlloc(8);
+  void *ptr3 = memAlloc(96);
+  ptr2 = memRealloc(ptr2, 16);
+  ptr1 = memRealloc(ptr1, 128);
+  ptr2 = memRealloc(ptr2, 32);
+  ptr3 = memRealloc(ptr3, 192);
+  ptr1 = memRealloc(ptr1, 256);
+  ptr2 = memRealloc(ptr2, 64);
+  ptr3 = memRealloc(ptr3, 384);
+  ptr1 = memRealloc(ptr1, 512);
+  ptr2 = memRealloc(ptr2, 128);
+  ptr3 = memRealloc(ptr3, 768);
+  ptr1 = memRealloc(ptr1, 1024);
+  ptr2 = memRealloc(ptr2, 256);
+  ptr3 = memRealloc(ptr3, 1536);
+  ptr1 = memRealloc(ptr1, 2048);
+  ptr3 = memRealloc(ptr3, 3072);
+  ptr1 = memRealloc(ptr1, 4096);
+
+  // dumpHeap();
+  checkHeapIntegrity();
+
+  memFree(ptr1);
+  memFree(ptr2);
+  memFree(ptr3);
+
+  // dumpHeap();
+}
+
 int main() {
   printf("Testing Manual Memory Management\n");
 
   // testAllocateSimple();
   // testAllocateThenFree();
-  // // testAllocateThenFreeInvalid();
+  // testAllocateThenFreeInvalid();
   // testAllocateThenFree();
   // testAllocateThenFreeThenAllocateSameSize();
   // testAllocateThenFreeThenAllocateSmaller();
   // testAllocateThenFreeFirstTwo();
   // testAllocateThenFreeSecondThenFirst();
   // testAllocateThenFreeAll();
-
+  //
   // testReallocateSimple();
   // testReallocateOnlyOneByteOnTop();
   // testReallocateNextBlockHasExactlyTheRightSize();
   // testReallocateNextIsFreeButTooSmall();
   // testReallocateNextIsNotFree();
-
+  //
   // testReallocateSameSize();
-
+  //
   // testReallocateSmaller();
   // testReallocateFreedIsTooSmall();
-  testReallocateEnoughForNewBlockAfter();
+  // testReallocateEnoughForNewBlockAfter();
+
+  testCustom();
 
   return 0;
 }

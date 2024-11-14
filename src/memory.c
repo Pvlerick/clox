@@ -1,10 +1,8 @@
 #include "memory.h"
-#include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define MANUAL_MEMORY_MANAGEMENT 1
 #ifndef MANUAL_MEMORY_MANAGEMENT
 
 void *memRealloc(void *pointer, size_t newSize) {
@@ -15,12 +13,16 @@ void memFree(void *pointer) { free(pointer); }
 
 #else
 
-const int HEAP_SIZE = 1 << 16;
+#include "debug.h"
+
+const size_t HEAP_SIZE = 1 << 16;
 Heap heap = {.first = NULL};
 
 void initHeap() {
-  debug("MEM: heap block size: %lu\n", sizeof(HeapBlock));
-  debug("MEM: allocating %d bytes for heap\n", HEAP_SIZE);
+  debug("WARNING: using home-made manual memory management.\n");
+
+  debug("MEM: heap size: %d bytes\n", HEAP_SIZE);
+  debug("MEM: heap block size: %lu bytes\n", sizeof(HeapBlock));
 
   void *heapStart = malloc(HEAP_SIZE);
 
@@ -38,6 +40,10 @@ void *memAlloc(size_t size) {
   if (heap.first == NULL)
     initHeap();
 
+#ifdef DEBUG
+  checkHeapIntegrity();
+#endif
+
   debug("MEM: allocating %zu bytes\n", size);
 
   HeapBlock *firstSuitable = heap.first;
@@ -46,13 +52,19 @@ void *memAlloc(size_t size) {
             firstSuitable->size > size + sizeof(HeapBlock))))
     firstSuitable = firstSuitable->next;
 
+  debug("MEM: found suitable block at %p\n", firstSuitable);
+
   if (firstSuitable->size == size) {
     // Requested size perfectly match free size, just update the block
     firstSuitable->isFree = false;
     return firstSuitable->content;
   }
 
+  debug("MEM: block size: %lu; requested size: %lu\n", firstSuitable->size,
+        size);
+
   HeapBlock *next = firstSuitable->content + size;
+  debug("MEM: created next block at %p\n", next);
   next->size = firstSuitable->size - (sizeof(HeapBlock) + size);
   next->isFree = true;
   next->content = firstSuitable->content + sizeof(HeapBlock) + size;
@@ -74,6 +86,10 @@ void memFree(void *pointer) {
     exit(1);
   }
 
+#ifdef DEBUG
+  checkHeapIntegrity();
+#endif
+
   HeapBlock *current = heap.first;
 
   while ((current != NULL) && (current->content != pointer))
@@ -83,6 +99,8 @@ void memFree(void *pointer) {
     fprintf(stderr, "Error: trying to free unallocated pointer\n");
     exit(1);
   }
+
+  debug("MEM: freeing: %p\n", pointer);
 
   current->isFree = true;
 
@@ -111,7 +129,7 @@ void memFree(void *pointer) {
 
   startBlock->size = ((void *)endBlock + endBlock->size - (void *)startBlock);
   startBlock->isFree = true;
-  startBlock->content = startBlock + sizeof(HeapBlock);
+  startBlock->content = (void *)startBlock + sizeof(HeapBlock);
   startBlock->next = endBlock->next;
   if (startBlock->next != NULL)
     startBlock->next->previous = startBlock;
@@ -120,6 +138,10 @@ void memFree(void *pointer) {
 void *memRealloc(void *pointer, size_t newSize) {
   if (heap.first == NULL)
     initHeap();
+
+#ifdef DEBUG
+  checkHeapIntegrity();
+#endif
 
   // Not allocated yet, do so
   if (pointer == NULL)
@@ -131,7 +153,10 @@ void *memRealloc(void *pointer, size_t newSize) {
     current = current->next;
 
   if (current == NULL) {
-    fprintf(stderr, "Error: trying to free unallocated pointer\n");
+    fprintf(
+        stderr,
+        "Error: trying to reallocate non-existing pointer %p to %lu bytes\n",
+        pointer, newSize);
     exit(1);
   }
 
@@ -174,22 +199,25 @@ void *memRealloc(void *pointer, size_t newSize) {
       current->size = newSize;
       current->next = current->next->next;
       current->next->previous = current;
-      return current;
+      return current->content;
     } else if (current->next->isFree && current->next->size > offset) {
       // Next is free and has enough space: resize both
       memcpy((void *)current->next + offset, (void *)current->next,
              sizeof(HeapBlock));
       current->next = (void *)current->next + offset;
+      current->next->previous = current;
       current->next->size -= offset;
       current->next->content += offset;
       current->size += offset;
-      return current;
+      if (current->next->next != NULL)
+        current->next->next->previous = current->next;
+      return current->content;
     } else {
       // In all other cases: alocate new and copy
       void *newLoc = memAlloc(newSize);
-
       memcpy(newLoc, current->content, current->size);
-      current->isFree = true;
+
+      memFree(current->content);
 
       return newLoc;
     }
@@ -220,6 +248,26 @@ void dumpHeap() {
   }
 
   debug("== End Heap Dump\n");
+}
+
+void checkHeapIntegrity() {
+  size_t totalSize = 0;
+  HeapBlock *current = heap.first;
+  HeapBlock *previous = NULL;
+  while (current != NULL) {
+    totalSize += current->size + sizeof(HeapBlock);
+    previous = current;
+    current = current->next;
+
+    if (current != NULL && current->previous != previous)
+      fprintf(stderr, "Error: previous reference in block is invalid\n");
+  }
+
+  if (totalSize != HEAP_SIZE) {
+    fprintf(stderr,
+            "Error: total heap size incorrect; expected %lu but got %lu\n",
+            HEAP_SIZE, totalSize);
+  }
 }
 
 #endif

@@ -1,24 +1,25 @@
 #include "chunk.h"
 #include "debug.h"
+#include "vm.h"
 
 int main(int argc, const char *argv[]) {
-#ifdef MANUAL_MEMORY_MANAGEMENT
-  debug("WARNING: using home-made manual memory management.\n");
-#endif
+  initVM();
 
   Chunk chunk;
-
   initChunk(&chunk);
 
-  for (int i = 0; i < 4; i++) {
-    writeConstant(&chunk, i + 1.2, i);
+  for (int i = 0; i < 300; i++) {
+    writeConstant(&chunk, i + 0.2, i);
   }
 
   writeChunk(&chunk, OP_RETURN, 52);
 
   disassembleChunk(&chunk, "test chunk");
 
+  interpret(&chunk);
+
   freeChunk(&chunk);
+  freeVM();
 
   return 0;
 }

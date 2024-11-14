@@ -4,8 +4,6 @@
 #include "common.h"
 #include <stdint.h>
 
-#define MANUAL_MEMORY_MANAGEMENT 1
-
 #define GROW_CAPACITY(capacity) \
   ((capacity) < 8 ? 8 : (capacity) * 2)
 
@@ -36,6 +34,7 @@ typedef struct {
 
 void dumpHeap();
 void dumpHeapBlock(HeapBlock* block);
+void checkHeapIntegrity();
 
 #endif
 
