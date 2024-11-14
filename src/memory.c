@@ -15,19 +15,20 @@ void memFree(void *pointer) { free(pointer); }
 
 #include "debug.h"
 
-const size_t HEAP_SIZE = 1 << 16;
+#define HEAP_MAX 65535
+
 Heap heap = {.first = NULL};
 
 void initHeap() {
   debug("WARNING: using home-made manual memory management.\n");
 
-  debug("MEM: heap size: %d bytes\n", HEAP_SIZE);
+  debug("MEM: heap size: %d bytes\n", HEAP_MAX);
   debug("MEM: heap block size: %lu bytes\n", sizeof(HeapBlock));
 
-  void *heapStart = malloc(HEAP_SIZE);
+  void *heapStart = malloc(HEAP_MAX);
 
   HeapBlock *first = heapStart;
-  first->size = HEAP_SIZE - sizeof(HeapBlock);
+  first->size = HEAP_MAX - sizeof(HeapBlock);
   first->isFree = true;
   first->content = heapStart + sizeof(HeapBlock);
   first->previous = NULL;
@@ -263,10 +264,10 @@ void checkHeapIntegrity() {
       fprintf(stderr, "Error: previous reference in block is invalid\n");
   }
 
-  if (totalSize != HEAP_SIZE) {
+  if (totalSize != HEAP_MAX) {
     fprintf(stderr,
-            "Error: total heap size incorrect; expected %lu but got %lu\n",
-            HEAP_SIZE, totalSize);
+            "Error: total heap size incorrect; expected %u but got %lu\n",
+            HEAP_MAX, totalSize);
   }
 }
 

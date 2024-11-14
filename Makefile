@@ -10,6 +10,10 @@ run:
 	./clox
 
 debug:
+	gcc -D MANUAL_MEMORY_MANAGEMENT -D DEBUG -D DEBUG_TRACE_EXECUTION -o clox src/main.c $(objects)
+	./clox
+
+trace:
 	gcc -D MANUAL_MEMORY_MANAGEMENT -D DEBUG -D DEBUG_TRACE_MEMORY -D DEBUG_TRACE_EXECUTION -o clox src/main.c $(objects)
 	./clox
 
