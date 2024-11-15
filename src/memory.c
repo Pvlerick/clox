@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef MANUAL_MEMORY_MANAGEMENT
+#ifdef NO_MANUAL_MEMORY_MANAGEMENT
 
 void *memRealloc(void *pointer, size_t newSize) {
   return realloc(pointer, newSize);
@@ -20,8 +20,6 @@ void memFree(void *pointer) { free(pointer); }
 Heap heap = {.first = NULL};
 
 void initHeap() {
-  debug("WARNING: using home-made manual memory management.\n");
-
   debug("MEM: heap size: %d bytes\n", HEAP_MAX);
   debug("MEM: heap block size: %lu bytes\n", sizeof(HeapBlock));
 
@@ -45,7 +43,7 @@ void *memAlloc(size_t size) {
   checkHeapIntegrity();
 #endif
 
-  debug("MEM: allocating %zu bytes\n", size);
+  debug("MEM: allocation request for %zu bytes\n", size);
 
   HeapBlock *firstSuitable = heap.first;
   while (!(firstSuitable->isFree &&
@@ -53,19 +51,17 @@ void *memAlloc(size_t size) {
             firstSuitable->size > size + sizeof(HeapBlock))))
     firstSuitable = firstSuitable->next;
 
-  debug("MEM: found suitable block at %p\n", firstSuitable);
+  debug("MEM: suitable block found at %p, block size: %lu\n", firstSuitable,
+        firstSuitable->size);
 
   if (firstSuitable->size == size) {
     // Requested size perfectly match free size, just update the block
     firstSuitable->isFree = false;
+    debug("MEM: allocated %zu bytes as %p\n", size, firstSuitable->content);
     return firstSuitable->content;
   }
 
-  debug("MEM: block size: %lu; requested size: %lu\n", firstSuitable->size,
-        size);
-
   HeapBlock *next = firstSuitable->content + size;
-  debug("MEM: created next block at %p\n", next);
   next->size = firstSuitable->size - (sizeof(HeapBlock) + size);
   next->isFree = true;
   next->content = firstSuitable->content + sizeof(HeapBlock) + size;
@@ -78,6 +74,7 @@ void *memAlloc(size_t size) {
   firstSuitable->isFree = false;
   firstSuitable->next = next;
 
+  debug("MEM: allocated %zu bytes as %p\n", size, firstSuitable->content);
   return firstSuitable->content;
 }
 

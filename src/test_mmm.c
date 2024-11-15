@@ -1,7 +1,3 @@
-#ifndef MANUAL_MEMORY_MANAGEMENT
-#define MANUAL_MEMORY_MANAGEMENT 1
-#endif
-
 #include "memory.h"
 #include "testing.h"
 #include <stdio.h>

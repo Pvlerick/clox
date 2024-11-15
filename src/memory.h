@@ -18,7 +18,7 @@ void *memRealloc(void *pointer, size_t newSize);
 void* memAlloc(size_t size);
 void memFree(void* pointer);
 
-#ifdef MANUAL_MEMORY_MANAGEMENT
+#ifndef NO_MANUAL_MEMORY_MANAGEMENT
 
 typedef struct block {
   size_t size;
