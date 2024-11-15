@@ -69,12 +69,14 @@ static InterpretResult run() {
       break;
     }
     case OP_NEGATE: {
-      pushOnStack(&vm.stack, -popFromStack(&vm.stack));
+      *(vm.stack.top - 1) = -(*(vm.stack.top - 1));
+      // pushOnStack(&vm.stack, -popFromStack(&vm.stack));
       break;
     }
     case OP_RETURN: {
-      printValue(popFromStack(&vm.stack));
-      printf("\n");
+      popFromStack(&vm.stack);
+      // printValue(popFromStack(&vm.stack));
+      // printf("\n");
       return INTERPRET_OK;
     }
     }
