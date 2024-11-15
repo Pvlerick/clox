@@ -15,7 +15,7 @@ void writeValueArray(ValueArray *array, Value value) {
     int oldCapactiy = array->capacity;
     array->capacity = GROW_CAPACITY(oldCapactiy);
     array->values =
-        GROW_ARRAY(typeof(Value), array->values, oldCapactiy, array->capacity);
+        GROW_ARRAY(Value, array->values, oldCapactiy, array->capacity);
   }
 
   array->values[array->count] = value;

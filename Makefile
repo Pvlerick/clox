@@ -1,6 +1,6 @@
 .PHONY: build run mmm test-mmm
 
-objects = src/chunk.c src/debug.c src/line.c src/memory.c src/value.c src/vm.c
+objects = src/chunk.c src/debug.c src/line.c src/memory.c src/value.c src/vm.c src/stack.c
 
 build:
 	gcc -o clox src/main.c $(objects)

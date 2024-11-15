@@ -1,5 +1,6 @@
 #include "vm.h"
 #include "chunk.h"
+#include "stack.h"
 #include "value.h"
 #include <stdio.h>
 
@@ -9,20 +10,9 @@
 
 VM vm;
 
-static void resetStack() { vm.stackTop = vm.stack; }
+void initVM() { initStack(&vm.stack); }
 
-void initVM() { resetStack(); }
-void freeVM() {}
-
-void push(Value value) {
-  *vm.stackTop = value;
-  vm.stackTop++;
-}
-
-Value pop() {
-  vm.stackTop--;
-  return *vm.stackTop;
-}
+void freeVM() { freeStack(&vm.stack); }
 
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
@@ -35,15 +25,15 @@ static InterpretResult run() {
   })
 #define BINARY_OP(op)                                                          \
   do {                                                                         \
-    double b = pop();                                                          \
-    double a = pop();                                                          \
-    push(a op b);                                                              \
+    double b = popFromStack(&vm.stack);                                        \
+    double a = popFromStack(&vm.stack);                                        \
+    pushOnStack(&vm.stack, a op b);                                            \
   } while (false)
 
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
     printf("          ");
-    for (Value *slot = vm.stack; slot < vm.stackTop; slot++) {
+    for (Value *slot = vm.stack.values; slot < vm.stack.top; slot++) {
       printf("[ ");
       printValue(*slot);
       printf(" ]");
@@ -55,11 +45,11 @@ static InterpretResult run() {
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
     case OP_CONSTANT: {
-      push(READ_CONSTANT());
+      pushOnStack(&vm.stack, READ_CONSTANT());
       break;
     }
     case OP_CONSTANT_LONG: {
-      push(READ_LONG_CONSTANT());
+      pushOnStack(&vm.stack, READ_LONG_CONSTANT());
       break;
     }
     case OP_ADD: {
@@ -79,11 +69,11 @@ static InterpretResult run() {
       break;
     }
     case OP_NEGATE: {
-      push(-pop());
+      pushOnStack(&vm.stack, -popFromStack(&vm.stack));
       break;
     }
     case OP_RETURN: {
-      printValue(pop());
+      printValue(popFromStack(&vm.stack));
       printf("\n");
       return INTERPRET_OK;
     }
