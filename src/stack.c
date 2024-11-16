@@ -1,12 +1,11 @@
 #include "stack.h"
 #include "memory.h"
-#include <stdio.h>
 
 void initStack(Stack *stack) {
   stack->count = 0;
   stack->capacity = 0;
-  stack->values = NULL;
-  stack->top = NULL;
+  stack->values = nullptr;
+  stack->top = nullptr;
 }
 
 void freeStack(Stack *stack) {

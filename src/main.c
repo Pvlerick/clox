@@ -1,5 +1,6 @@
 #include "chunk.h"
 #include "vm.h"
+#include <stdlib.h>
 
 int main(int argc, const char *argv[]) {
   initVM();
@@ -21,5 +22,5 @@ int main(int argc, const char *argv[]) {
   freeChunk(&chunk);
   freeVM();
 
-  return 0;
+  return EXIT_SUCCESS;
 }

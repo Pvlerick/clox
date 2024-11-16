@@ -30,7 +30,7 @@ int getInstructionLine(LineArray *array, int offset) {
 void initLineArray(LineArray *array) {
   array->count = 0;
   array->capacity = 0;
-  array->items = NULL;
+  array->items = nullptr;
 }
 
 void freeLineArray(LineArray *array) {

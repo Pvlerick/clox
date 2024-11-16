@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "memory.h"
 #include "value.h"
@@ -7,7 +6,7 @@
 void initValueArray(ValueArray *array) {
   array->count = 0;
   array->capacity = 0;
-  array->values = NULL;
+  array->values = nullptr;
 }
 
 void writeValueArray(ValueArray *array, Value value) {

@@ -23,7 +23,7 @@ void memFree(void* pointer);
 typedef struct block {
   size_t size;
   bool isFree;
-  void* content; //NULL if empty
+  void* content; //nullptr if empty
   struct block* previous;
   struct block* next;
 } HeapBlock;

@@ -1,6 +1,4 @@
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "chunk.h"
 #include "line.h"
@@ -10,7 +8,7 @@
 void initChunk(Chunk *chunk) {
   chunk->count = 0;
   chunk->capacity = 0;
-  chunk->code = NULL;
+  chunk->code = nullptr;
   initValueArray(&chunk->constants);
   initLineArray(&chunk->lines);
 }

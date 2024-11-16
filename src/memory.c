@@ -17,7 +17,7 @@ void memFree(void *pointer) { free(pointer); }
 
 #define HEAP_MAX 65535
 
-Heap heap = {.first = NULL};
+Heap heap = {.first = nullptr};
 
 void initHeap() {
   debug("MEM: heap size: %d bytes\n", HEAP_MAX);
@@ -29,14 +29,14 @@ void initHeap() {
   first->size = HEAP_MAX - sizeof(HeapBlock);
   first->isFree = true;
   first->content = heapStart + sizeof(HeapBlock);
-  first->previous = NULL;
-  first->next = NULL;
+  first->previous = nullptr;
+  first->next = nullptr;
 
   heap.first = first;
 }
 
 void *memAlloc(size_t size) {
-  if (heap.first == NULL)
+  if (heap.first == nullptr)
     initHeap();
 
 #ifdef DEBUG_TRACE_MEMORY
@@ -67,7 +67,7 @@ void *memAlloc(size_t size) {
   next->content = firstSuitable->content + sizeof(HeapBlock) + size;
   next->previous = firstSuitable;
   next->next = firstSuitable->next;
-  if (firstSuitable->next != NULL)
+  if (firstSuitable->next != nullptr)
     firstSuitable->next->previous = next;
 
   firstSuitable->size = size;
@@ -79,7 +79,7 @@ void *memAlloc(size_t size) {
 }
 
 void memFree(void *pointer) {
-  if (heap.first == NULL) {
+  if (heap.first == nullptr) {
     fprintf(stderr, "Error: trying to free unallocated pointer\n");
     exit(1);
   }
@@ -90,10 +90,10 @@ void memFree(void *pointer) {
 
   HeapBlock *current = heap.first;
 
-  while ((current != NULL) && (current->content != pointer))
+  while ((current != nullptr) && (current->content != pointer))
     current = current->next;
 
-  if (current == NULL || current->isFree) {
+  if (current == nullptr || current->isFree) {
     fprintf(stderr, "Error: trying to free unallocated pointer\n");
     exit(1);
   }
@@ -104,13 +104,13 @@ void memFree(void *pointer) {
 
   // Find start of free blocks chain
   HeapBlock *startBlock = current;
-  while (startBlock->previous != NULL && startBlock->previous->isFree) {
+  while (startBlock->previous != nullptr && startBlock->previous->isFree) {
     startBlock = startBlock->previous;
   }
 
   // Find end of free blocks chain
   HeapBlock *endBlock = current;
-  while (endBlock->next != NULL && endBlock->next->isFree) {
+  while (endBlock->next != nullptr && endBlock->next->isFree) {
     endBlock = endBlock->next;
   }
 
@@ -129,12 +129,12 @@ void memFree(void *pointer) {
   startBlock->isFree = true;
   startBlock->content = (void *)startBlock + sizeof(HeapBlock);
   startBlock->next = endBlock->next;
-  if (startBlock->next != NULL)
+  if (startBlock->next != nullptr)
     startBlock->next->previous = startBlock;
 }
 
 void *memRealloc(void *pointer, size_t newSize) {
-  if (heap.first == NULL)
+  if (heap.first == nullptr)
     initHeap();
 
 #ifdef DEBUG_TRACE_MEMORY
@@ -142,15 +142,15 @@ void *memRealloc(void *pointer, size_t newSize) {
 #endif
 
   // Not allocated yet, do so
-  if (pointer == NULL)
+  if (pointer == nullptr)
     return memAlloc(newSize);
 
   HeapBlock *current = heap.first;
 
-  while ((current != NULL) && (current->content != pointer))
+  while ((current != nullptr) && (current->content != pointer))
     current = current->next;
 
-  if (current == NULL) {
+  if (current == nullptr) {
     fprintf(
         stderr,
         "Error: trying to reallocate non-existing pointer %p to %lu bytes\n",
@@ -207,7 +207,7 @@ void *memRealloc(void *pointer, size_t newSize) {
       current->next->size -= offset;
       current->next->content += offset;
       current->size += offset;
-      if (current->next->next != NULL)
+      if (current->next->next != nullptr)
         current->next->next->previous = current->next;
       return current->content;
     } else {
@@ -234,13 +234,13 @@ void dumpHeapBlock(HeapBlock *block) {
 }
 
 void dumpHeap() {
-  if (heap.first == NULL)
+  if (heap.first == nullptr)
     initHeap();
 
   debug("== Heap Dump\n");
 
   HeapBlock *current = heap.first;
-  while (current != NULL) {
+  while (current != nullptr) {
     dumpHeapBlock(current);
     current = current->next;
   }
@@ -251,13 +251,13 @@ void dumpHeap() {
 void checkHeapIntegrity() {
   size_t totalSize = 0;
   HeapBlock *current = heap.first;
-  HeapBlock *previous = NULL;
-  while (current != NULL) {
+  HeapBlock *previous = nullptr;
+  while (current != nullptr) {
     totalSize += current->size + sizeof(HeapBlock);
     previous = current;
     current = current->next;
 
-    if (current != NULL && current->previous != previous)
+    if (current != nullptr && current->previous != previous)
       fprintf(stderr, "Error: previous reference in block is invalid\n");
   }
 
@@ -273,12 +273,12 @@ void checkHeapIntegrity() {
 void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
   if (newSize == 0) {
     memFree(pointer);
-    return NULL;
+    return nullptr;
   }
 
   void *result = memRealloc(pointer, newSize);
 
-  if (result == NULL)
+  if (result == nullptr)
     exit(1);
 
   return result;
