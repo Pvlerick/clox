@@ -20,13 +20,14 @@ void memFree(void* pointer);
 
 #ifndef NO_MANUAL_MEMORY_MANAGEMENT
 
-typedef struct block {
+typedef struct HeapBlock HeapBlock;
+struct HeapBlock {
   size_t size;
   bool isFree;
-  void* content; //nullptr if empty
-  struct block* previous;
-  struct block* next;
-} HeapBlock;
+  void* content; 
+  struct HeapBlock* previous;
+  struct HeapBlock* next;
+};
 
 typedef struct {
   HeapBlock* first;

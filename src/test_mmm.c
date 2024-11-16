@@ -2,11 +2,6 @@
 #include "testing.h"
 #include <stdio.h>
 
-typedef struct s {
-  bool isFull;
-  int size;
-} TestStruct;
-
 void testAllocateSimple() {
   printf("====== AllocateSimple\n");
 
