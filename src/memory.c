@@ -21,14 +21,14 @@ Heap heap = {.first = nullptr};
 
 void initHeap() {
   debug("MEM: heap size: %d bytes\n", HEAP_MAX);
-  debug("MEM: heap block size: %lu bytes\n", sizeof(HeapBlock));
+  debug("MEM: heap block size: %lu bytes\n", HEAP_BLOCK_SIZE);
 
   void *heapStart = malloc(HEAP_MAX);
 
   HeapBlock *first = heapStart;
-  first->size = HEAP_MAX - sizeof(HeapBlock);
+  first->size = HEAP_MAX - HEAP_BLOCK_SIZE;
   first->isFree = true;
-  first->content = heapStart + sizeof(HeapBlock);
+  first->content = heapStart + HEAP_BLOCK_SIZE;
   first->previous = nullptr;
   first->next = nullptr;
 
@@ -43,38 +43,42 @@ void *memAlloc(size_t size) {
   checkHeapIntegrity();
 #endif
 
-  debug("MEM: allocation request for %zu bytes\n", size);
+  size_t alignedSize = ALIGN_TO_WORD_SIZE(size);
+
+  debug("MEM: allocation request for %zu bytes\n", alignedSize);
 
   HeapBlock *firstSuitable = heap.first;
   while (!(firstSuitable->isFree &&
-           ((firstSuitable->size == size) ||
-            firstSuitable->size > size + sizeof(HeapBlock))))
+           ((firstSuitable->size == alignedSize) ||
+            firstSuitable->size > alignedSize + HEAP_BLOCK_SIZE)))
     firstSuitable = firstSuitable->next;
 
   debug("MEM: suitable block found at %p, block size: %lu\n", firstSuitable,
         firstSuitable->size);
 
-  if (firstSuitable->size == size) {
+  if (firstSuitable->size == alignedSize) {
     // Requested size perfectly match free size, just update the block
     firstSuitable->isFree = false;
-    debug("MEM: allocated %zu bytes as %p\n", size, firstSuitable->content);
+    debug("MEM: allocated %zu bytes as %p\n", alignedSize,
+          firstSuitable->content);
     return firstSuitable->content;
   }
 
-  HeapBlock *next = firstSuitable->content + size;
-  next->size = firstSuitable->size - (sizeof(HeapBlock) + size);
+  HeapBlock *next = firstSuitable->content + alignedSize;
+  next->size = firstSuitable->size - (HEAP_BLOCK_SIZE + alignedSize);
   next->isFree = true;
-  next->content = firstSuitable->content + sizeof(HeapBlock) + size;
+  next->content = firstSuitable->content + HEAP_BLOCK_SIZE + alignedSize;
   next->previous = firstSuitable;
   next->next = firstSuitable->next;
   if (firstSuitable->next != nullptr)
     firstSuitable->next->previous = next;
 
-  firstSuitable->size = size;
+  firstSuitable->size = alignedSize;
   firstSuitable->isFree = false;
   firstSuitable->next = next;
 
-  debug("MEM: allocated %zu bytes as %p\n", size, firstSuitable->content);
+  debug("MEM: allocated %zu bytes as %p\n", alignedSize,
+        firstSuitable->content);
   return firstSuitable->content;
 }
 
@@ -121,13 +125,13 @@ void memFree(void *pointer) {
   size_t newSize = startBlock->size;
   HeapBlock *walkBlock = startBlock->next;
   while (walkBlock != endBlock->next) {
-    newSize += walkBlock->size + sizeof(HeapBlock);
+    newSize += walkBlock->size + HEAP_BLOCK_SIZE;
     walkBlock = walkBlock->next;
   }
 
   startBlock->size = ((void *)endBlock + endBlock->size - (void *)startBlock);
   startBlock->isFree = true;
-  startBlock->content = (void *)startBlock + sizeof(HeapBlock);
+  startBlock->content = (void *)startBlock + HEAP_BLOCK_SIZE;
   startBlock->next = endBlock->next;
   if (startBlock->next != nullptr)
     startBlock->next->previous = startBlock;
@@ -141,9 +145,11 @@ void *memRealloc(void *pointer, size_t newSize) {
   checkHeapIntegrity();
 #endif
 
+  size_t alignedNewSize = ALIGN_TO_WORD_SIZE(newSize);
+
   // Not allocated yet, do so
   if (pointer == nullptr)
-    return memAlloc(newSize);
+    return memAlloc(alignedNewSize);
 
   HeapBlock *current = heap.first;
 
@@ -154,54 +160,54 @@ void *memRealloc(void *pointer, size_t newSize) {
     fprintf(
         stderr,
         "Error: trying to reallocate non-existing pointer %p to %lu bytes\n",
-        pointer, newSize);
+        pointer, alignedNewSize);
     exit(1);
   }
 
-  if (newSize == current->size)
+  if (alignedNewSize == current->size)
     return current->content; // Thanks, come again
 
-  if (newSize < current->size) { // Smaller
-    size_t offset = current->size - newSize;
+  if (alignedNewSize < current->size) { // Smaller
+    size_t offset = current->size - alignedNewSize;
 
     if (current->next->isFree) {
       // Next is free: resize both
       memcpy((void *)current->next - offset, (void *)current->next,
-             sizeof(HeapBlock));
-      current->size = newSize;
+             HEAP_BLOCK_SIZE);
+      current->size = alignedNewSize;
       current->next = (void *)current->next - offset;
       current->next->size += offset;
       current->next->content -= offset;
       return current->content;
-    } else if (offset <= sizeof(HeapBlock)) {
+    } else if (offset <= HEAP_BLOCK_SIZE) {
       // Can't fint a HeapBlock in the freed space, don't do anything
       return current->content;
     } else {
-      HeapBlock *newBlock = current->content + newSize;
-      newBlock->size = current->size - (newSize + sizeof(HeapBlock));
+      HeapBlock *newBlock = current->content + alignedNewSize;
+      newBlock->size = current->size - (alignedNewSize + HEAP_BLOCK_SIZE);
       newBlock->isFree = true;
-      newBlock->content = newBlock + sizeof(HeapBlock);
+      newBlock->content = newBlock + HEAP_BLOCK_SIZE;
       newBlock->previous = current;
       newBlock->next = current->next;
 
-      current->size = newSize;
+      current->size = alignedNewSize;
       current->next = newBlock;
 
       return current->content;
     }
   } else { // Larger
-    size_t offset = newSize - current->size;
+    size_t offset = alignedNewSize - current->size;
     if (current->next->isFree &&
-        current->next->size + sizeof(HeapBlock) == offset) {
+        current->next->size + HEAP_BLOCK_SIZE == offset) {
       // Next is free and has the exact size we need: absorb it
-      current->size = newSize;
+      current->size = alignedNewSize;
       current->next = current->next->next;
       current->next->previous = current;
       return current->content;
     } else if (current->next->isFree && current->next->size > offset) {
       // Next is free and has enough space: resize both
       memcpy((void *)current->next + offset, (void *)current->next,
-             sizeof(HeapBlock));
+             HEAP_BLOCK_SIZE);
       current->next = (void *)current->next + offset;
       current->next->previous = current;
       current->next->size -= offset;
@@ -212,7 +218,7 @@ void *memRealloc(void *pointer, size_t newSize) {
       return current->content;
     } else {
       // In all other cases: alocate new and copy
-      void *newLoc = memAlloc(newSize);
+      void *newLoc = memAlloc(alignedNewSize);
       memcpy(newLoc, current->content, current->size);
 
       memFree(current->content);
@@ -253,7 +259,7 @@ void checkHeapIntegrity() {
   HeapBlock *current = heap.first;
   HeapBlock *previous = nullptr;
   while (current != nullptr) {
-    totalSize += current->size + sizeof(HeapBlock);
+    totalSize += current->size + HEAP_BLOCK_SIZE;
     previous = current;
     current = current->next;
 
