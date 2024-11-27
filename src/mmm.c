@@ -1,3 +1,4 @@
+#include <err.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +43,52 @@ void initHeap() {
   first->next = nullptr;
 
   heap.first = first;
+}
+
+void dumpHeapBlock(HeapBlock *block) {
+  debug("=== Heap Block Dump\n");
+  debug("Address: %p\n", block);
+  debug("Size: %zu\n", block->size);
+  debug("IsFree: %b\n", block->isFree);
+  debug("Content: %p\n", block->content);
+  debug("Previous: %p\n", block->previous);
+  debug("Next: %p\n", block->next);
+  debug("=== End Heap Block Dump\n");
+}
+
+void dumpHeap() {
+  if (heap.first == nullptr)
+    initHeap();
+
+  debug("== Heap Dump\n");
+
+  HeapBlock *current = heap.first;
+  while (current != nullptr) {
+    dumpHeapBlock(current);
+    current = current->next;
+  }
+
+  debug("== End Heap Dump\n");
+}
+
+void checkHeapIntegrity() {
+  size_t totalSize = 0;
+  HeapBlock *current = heap.first;
+  HeapBlock *previous = nullptr;
+  while (current != nullptr) {
+    totalSize += current->size + HEAP_BLOCK_SIZE;
+    previous = current;
+    current = current->next;
+
+    if (current != nullptr && current->previous != previous)
+      fprintf(stderr, "Error: previous reference in block is invalid\n");
+  }
+
+  if (totalSize != HEAP_MAX) {
+    fprintf(stderr,
+            "Error: total heap size incorrect; expected %u but got %lu\n",
+            HEAP_MAX, totalSize);
+  }
 }
 
 void *__wrap_malloc(size_t size) {
@@ -92,10 +139,12 @@ void *__wrap_malloc(size_t size) {
 }
 
 void __wrap_free(void *ptr) {
-  if (heap.first == nullptr) {
-    fprintf(stderr, "Error: trying to free unallocated pointer\n");
-    exit(1);
-  }
+  if (ptr == nullptr)
+    return;
+
+  if (heap.first == nullptr)
+    err(EXIT_FAILURE,
+        "Error: trying to free while heap has not been initialized yet\n");
 
 #ifdef DEBUG_TRACE_MEMORY
   checkHeapIntegrity();
@@ -106,10 +155,8 @@ void __wrap_free(void *ptr) {
   while ((current != nullptr) && (current->content != ptr))
     current = current->next;
 
-  if (current == nullptr || current->isFree) {
-    fprintf(stderr, "Error: trying to free unallocated pointer\n");
-    exit(1);
-  }
+  if (current == nullptr || current->isFree)
+    err(EXIT_FAILURE, "Error: trying to free unallocated pointer\n");
 
   debug("MEM: freeing: %p\n", ptr);
 
@@ -234,51 +281,5 @@ void *__wrap_realloc(void *ptr, size_t size) {
 
       return newLoc;
     }
-  }
-}
-
-void dumpHeapBlock(HeapBlock *block) {
-  debug("=== Heap Block Dump\n");
-  debug("Address: %p\n", block);
-  debug("Size: %zu\n", block->size);
-  debug("IsFree: %b\n", block->isFree);
-  debug("Content: %p\n", block->content);
-  debug("Previous: %p\n", block->previous);
-  debug("Next: %p\n", block->next);
-  debug("=== End Heap Block Dump\n");
-}
-
-void dumpHeap() {
-  if (heap.first == nullptr)
-    initHeap();
-
-  debug("== Heap Dump\n");
-
-  HeapBlock *current = heap.first;
-  while (current != nullptr) {
-    dumpHeapBlock(current);
-    current = current->next;
-  }
-
-  debug("== End Heap Dump\n");
-}
-
-void checkHeapIntegrity() {
-  size_t totalSize = 0;
-  HeapBlock *current = heap.first;
-  HeapBlock *previous = nullptr;
-  while (current != nullptr) {
-    totalSize += current->size + HEAP_BLOCK_SIZE;
-    previous = current;
-    current = current->next;
-
-    if (current != nullptr && current->previous != previous)
-      fprintf(stderr, "Error: previous reference in block is invalid\n");
-  }
-
-  if (totalSize != HEAP_MAX) {
-    fprintf(stderr,
-            "Error: total heap size incorrect; expected %u but got %lu\n",
-            HEAP_MAX, totalSize);
   }
 }
