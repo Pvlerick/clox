@@ -17,6 +17,7 @@ typedef struct {
 typedef enum {
   PREC_NONE,
   PREC_ASSIGNMENT,
+  PREC_TERNARY,
   PREC_OR,
   PREC_AND,
   PREC_EQUALITY,
@@ -166,13 +167,22 @@ static void unary() {
   }
 }
 
+static void ternary() {
+  printf("parsing mixfix ternary operator\n");
+  expression();
+  consume(TOKEN_COLON, "Expect \":\"");
+  expression();
+}
+
 ParseRule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, nullptr, PREC_NONE},
     [TOKEN_RIGHT_PAREN] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_LEFT_BRACE] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_RIGHT_BRACE] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_COMMA] = {nullptr, nullptr, PREC_NONE},
+    [TOKEN_COLON] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_DOT] = {nullptr, nullptr, PREC_NONE},
+    [TOKEN_QUESTIONMARK] = {nullptr, ternary, PREC_TERNARY},
     [TOKEN_MINUS] = {unary, binary, PREC_TERM},
     [TOKEN_PLUS] = {nullptr, binary, PREC_TERM},
     [TOKEN_SEMICOLON] = {nullptr, nullptr, PREC_NONE},
