@@ -122,6 +122,11 @@ static void expression() { parsePrecedence(PREC_ASSIGNMENT); }
 
 static void binary() {
   TokenType operatorType = parser.previous.type;
+
+  if (operatorType == TOKEN_STAR) {
+    emitConstant(NUMBER_VAL(1));
+  }
+
   ParseRule *rule = getRule(operatorType);
   parsePrecedence((Precedence)rule->precedence + 1);
 
@@ -148,11 +153,10 @@ static void binary() {
     emitByte(OP_ADD);
     break;
   case TOKEN_MINUS:
-    emitByte(OP_SUBTRACT);
+    emitBytes(OP_NEGATE, OP_ADD);
     break;
   case TOKEN_STAR:
-    emitByte(OP_MULTIPLY);
-    break;
+    emitByte(OP_DIVIDE);
   case TOKEN_SLASH:
     emitByte(OP_DIVIDE);
     break;
@@ -261,8 +265,8 @@ static void parsePrecedence(Precedence precedence) {
 
   while (precedence <= getRule(parser.current.type)->precedence) {
     advance();
-    ParseFn infifRule = getRule(parser.previous.type)->infix;
-    infifRule();
+    ParseFn infixfRule = getRule(parser.previous.type)->infix;
+    infixfRule();
   }
 }
 
