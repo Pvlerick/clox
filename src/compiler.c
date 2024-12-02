@@ -1,4 +1,5 @@
 #include "chunk.h"
+#include "object.h"
 #include "scanner.h"
 #include "value.h"
 #include <stdio.h>
@@ -187,6 +188,11 @@ static void number() {
   emitConstant(NUMBER_VAL(value));
 }
 
+static void string() {
+  emitConstant(OBJ_VAL(
+      copyString(parser.previous.start + 1, parser.previous.length - 2)));
+}
+
 static void unary() {
   TokenType operatorType = parser.previous.type;
 
@@ -225,7 +231,7 @@ ParseRule rules[] = {
     [TOKEN_LESS] = {nullptr, binary, PREC_COMPARISON},
     [TOKEN_LESS_EQUAL] = {nullptr, binary, PREC_COMPARISON},
     [TOKEN_IDENTIFIER] = {nullptr, nullptr, PREC_NONE},
-    [TOKEN_STRING] = {nullptr, nullptr, PREC_NONE},
+    [TOKEN_STRING] = {string, nullptr, PREC_NONE},
     [TOKEN_NUMBER] = {number, nullptr, PREC_NONE},
     [TOKEN_AND] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_CLASS] = {nullptr, nullptr, PREC_NONE},
