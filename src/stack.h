@@ -15,5 +15,6 @@ void initStack(Stack* stack);
 void freeStack(Stack* stack);
 void pushOnStack(Stack* stack, Value value);
 Value popFromStack(Stack* stack);
+Value peekFromStack(Stack* stack, int distance);
 
 #endif

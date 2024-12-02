@@ -34,3 +34,7 @@ Value popFromStack(Stack *stack) {
   stack->count--;
   return *stack->top;
 }
+
+Value peekFromStack(Stack *stack, int distance) {
+  return stack->top[-1 - distance];
+}
