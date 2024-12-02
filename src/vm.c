@@ -102,6 +102,10 @@ static InterpretResult run() {
     case OP_ADD:
       BINARY_OP(NUMBER_VAL, +);
       break;
+    case OP_ADD_ONE:
+      double x = AS_NUMBER(pop());
+      push(NUMBER_VAL(x + 1));
+      break;
     case OP_SUBTRACT:
       BINARY_OP(NUMBER_VAL, -);
       break;

@@ -122,6 +122,15 @@ static void expression() { parsePrecedence(PREC_ASSIGNMENT); }
 
 static void binary() {
   TokenType operatorType = parser.previous.type;
+
+  if (parser.previous.type == TOKEN_PLUS &&
+      parser.current.type == TOKEN_NUMBER &&
+      strtod(parser.previous.start, nullptr)) {
+    advance();
+    emitByte(OP_ADD_ONE);
+    return;
+  }
+
   ParseRule *rule = getRule(operatorType);
   parsePrecedence((Precedence)rule->precedence + 1);
 
