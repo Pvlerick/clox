@@ -1,6 +1,7 @@
 #include "object.h"
 #include "memory.h"
 #include "value.h"
+#include "vm.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -10,6 +11,10 @@
 static Obj *allocateObject(size_t size, ObjType type) {
   Obj *obj = (Obj *)reallocate(nullptr, 0, size);
   obj->type = type;
+
+  obj->next = vm.objects;
+  vm.objects = obj;
+
   return obj;
 }
 

@@ -15,9 +15,15 @@
 
 VM vm;
 
-void initVM() { initStack(&vm.stack); }
+void initVM() {
+  initStack(&vm.stack);
+  vm.objects = nullptr;
+}
 
-void freeVM() { freeStack(&vm.stack); }
+void freeVM() {
+  freeStack(&vm.stack);
+  freeObjects();
+}
 
 static void resetStack() { freeStack(&vm.stack); }
 

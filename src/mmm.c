@@ -101,7 +101,8 @@ void *__wrap_malloc(size_t size) {
 
   size_t alignedSize = ALIGN_TO_WORD_SIZE(size);
 
-  debug("MEM: allocation request for %zu bytes\n", alignedSize);
+  debug("MEM: allocation request for %zu bytes (aligned size for %zu)\n",
+        alignedSize, size);
 
   HeapBlock *firstSuitable = heap.first;
   while (!(firstSuitable->isFree &&
@@ -156,7 +157,8 @@ void __wrap_free(void *ptr) {
     current = current->next;
 
   if (current == nullptr || current->isFree)
-    err(EXIT_FAILURE, "Error: trying to free unallocated pointer\n");
+    err(EXIT_FAILURE, "Error: trying to free unallocated pointer: %p\n",
+        current);
 
   debug("MEM: freeing: %p\n", ptr);
 
