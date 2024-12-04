@@ -9,7 +9,6 @@
 #define IS_STRING(value) isObjType(value, OBJ_STRING)
 
 #define AS_STRING(value) ((ObjString*)AS_OBJ(value))
-#define AS_CSTRING(value) (((ObjString*)AS_OBJ(value))->chars)
 
 typedef enum {
   OBJ_STRING,
@@ -20,14 +19,24 @@ struct Obj {
   struct Obj *next;
 };
 
+// Note: this could be optimized using an union of FAM 
+// union {
+//   char *borrowed[] // Will have zero or one element
+//   char owned[]     // Will have n + 1 elements if owned
+// }
+// which would get rid of the wasted space for *borrowed if not used
+// This requires GCC 15 which I don't have :-)
 struct ObjString {
   Obj obj;
   int length;
-  char chars[];
+  bool isBorrowed;
+  const char *borrowed;
+  char owned[];
 };
 
 ObjString *allocateString(int length);
-ObjString *copyString(const char* chars, int length);
+ObjString *borrowString(const char* chars, int length);
+const char *getCString(ObjString *string);
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {

@@ -18,29 +18,36 @@ static Obj *allocateObject(size_t size, ObjType type) {
   return obj;
 }
 
-// Note: will allocate length + 1 to allow for \0
 ObjString *allocateString(int length) {
   ObjString *string = (ObjString *)allocateObject(
       sizeof(ObjString) + sizeof(char) * (length + 1), OBJ_STRING);
 
   string->length = length;
+  string->isBorrowed = false;
 
   return string;
 }
 
-ObjString *copyString(const char *chars, int length) {
-  ObjString *string = allocateString(length);
+ObjString *borrowString(const char *chars, int length) {
+  ObjString *string =
+      (ObjString *)allocateObject(sizeof(ObjString), OBJ_STRING);
 
-  memcpy(string->chars, chars, length);
-  string->chars[length] = '\0';
+  string->length = length;
+  string->isBorrowed = true;
+  string->borrowed = chars;
 
   return string;
+}
+
+const char *getCString(ObjString *string) {
+  return string->isBorrowed ? string->borrowed : string->owned;
 }
 
 void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
   case OBJ_STRING:
-    printf("%s", AS_CSTRING(value));
+    ObjString *string = AS_STRING(value);
+    printf("%.*s", string->length, getCString(string));
     break;
   }
 }
