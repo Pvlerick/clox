@@ -18,24 +18,23 @@ static Obj *allocateObject(size_t size, ObjType type) {
   return obj;
 }
 
-static ObjString *allocateString(char *chars, int length) {
-  ObjString *string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+// Note: will allocate length + 1 to allow for \0
+ObjString *allocateString(int length) {
+  ObjString *string = (ObjString *)allocateObject(
+      sizeof(ObjString) + sizeof(char) * (length + 1), OBJ_STRING);
+
   string->length = length;
-  string->chars = chars;
+
   return string;
 }
 
-ObjString *takeString(char *chars, int length) {
-  return allocateString(chars, length);
-}
-
 ObjString *copyString(const char *chars, int length) {
-  char *heapChars = ALLOCATE(char, length + 1);
+  ObjString *string = allocateString(length);
 
-  memcpy(heapChars, chars, length);
-  heapChars[length] = '\0';
+  memcpy(string->chars, chars, length);
+  string->chars[length] = '\0';
 
-  return allocateString(heapChars, length);
+  return string;
 }
 
 void printObject(Value value) {
