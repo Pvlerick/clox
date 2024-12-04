@@ -4,11 +4,13 @@
 #include "chunk.h"
 #include "debug.h"
 #include "stack.h"
+#include "table.h"
 
 typedef struct {
   Chunk* chunk;
   uint8_t* ip;
   Stack stack;
+  Table strings;
   Obj *objects;
 } VM;
 

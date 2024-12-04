@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "value.h"
+#include <stdint.h>
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
@@ -29,13 +30,21 @@ struct Obj {
 struct ObjString {
   Obj obj;
   int length;
+  uint32_t hash;
   bool isBorrowed;
   const char *borrowed;
   char owned[];
 };
 
-ObjString *allocateString(int length);
+typedef struct StringRef {
+  int length;
+  const char *content;
+} StringRef;
+
+ObjString *allocateString(int length, int count, ...);
+StringRef toStringRef(ObjString *string);
 ObjString *borrowString(const char* chars, int length);
+uint32_t hashString(const char *key, int length);
 const char *getCString(ObjString *string);
 void printObject(Value value);
 

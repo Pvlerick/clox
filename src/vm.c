@@ -18,10 +18,12 @@ VM vm;
 void initVM() {
   initStack(&vm.stack);
   vm.objects = nullptr;
+  initTable(&vm.strings);
 }
 
 void freeVM() {
   freeStack(&vm.stack);
+  freeTable(&vm.strings);
   freeObjects();
 }
 
@@ -52,11 +54,8 @@ static void concatenate() {
   ObjString *b = AS_STRING(pop());
   ObjString *a = AS_STRING(pop());
 
-  int length = a->length + b->length;
-  ObjString *result = allocateString(length);
-  memcpy(result->owned, getCString(a), a->length);
-  memcpy(result->owned + a->length, getCString(b), b->length);
-  result->owned[length] = '\0';
+  ObjString *result =
+      allocateString(a->length + b->length, 2, toStringRef(a), toStringRef(b));
 
   push(OBJ_VAL(result));
 }
