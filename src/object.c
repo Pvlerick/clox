@@ -43,23 +43,23 @@ ObjString *allocateString(int length, int count, ...) {
 
   for (int i = 0; i < count; i++) {
     StringRef ref = va_arg(refs, StringRef);
-    memcpy(string->owned + offset, ref.content, ref.length);
+    memcpy(string->content + offset, ref.content, ref.length);
     offset += ref.length;
   }
 
   va_end(refs);
 
-  string->hash = hashString(string->owned, length);
+  string->hash = hashString(string->content, length);
 
   ObjString *interned =
-      tableFindString(&vm.strings, string->owned, length, string->hash);
+      tableFindString(&vm.strings, string->content, length, string->hash);
 
   if (interned != nullptr) {
     FREE(ObjString, string);
     return interned;
   }
 
-  string->owned[length] = '\0';
+  string->content[length] = '\0';
   string->length = length;
   string->isBorrowed = false;
 
@@ -76,13 +76,13 @@ ObjString *borrowString(const char *chars, int length) {
   if (interned != nullptr)
     return interned;
 
-  ObjString *string =
-      (ObjString *)allocateObject(sizeof(ObjString), OBJ_STRING);
+  ObjString *string = (ObjString *)allocateObject(
+      sizeof(ObjString) + sizeof(char *), OBJ_STRING);
 
   string->length = length;
   string->isBorrowed = true;
-  string->borrowed = chars;
   string->hash = hashString(chars, length);
+  memcpy((void *)string->content, (void *)&chars, sizeof(char *));
 
   tableSet(&vm.strings, string, NIL_VAL);
 
@@ -90,14 +90,14 @@ ObjString *borrowString(const char *chars, int length) {
 }
 
 const char *getCString(ObjString *string) {
-  return string->isBorrowed ? string->borrowed : string->owned;
+  return string->isBorrowed ? *(char **)string->content : string->content;
 }
 
 void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
   case OBJ_STRING:
     ObjString *string = AS_STRING(value);
-    printf("%.*s", string->length, getCString(string));
+    printf("'%.*s'", string->length, getCString(string));
     break;
   }
 }

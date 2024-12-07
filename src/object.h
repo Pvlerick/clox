@@ -20,20 +20,14 @@ struct Obj {
   struct Obj *next;
 };
 
-// Note: this could be optimized using an union of FAM 
-// union {
-//   char *borrowed[] // Will have zero or one element
-//   char owned[]     // Will have n + 1 elements if owned
-// }
-// which would get rid of the wasted space for *borrowed if not used
-// This requires GCC 15 which I don't have :-)
+// Note: in the case of a borrowed string, the FAM is reinterpreted as a char*
+// This would be better with a union, but that's an extension of GCC that's not in the mainline yet
 struct ObjString {
   Obj obj;
   int length;
   uint32_t hash;
   bool isBorrowed;
-  const char *borrowed;
-  char owned[];
+  char content[];
 };
 
 typedef struct StringRef {
