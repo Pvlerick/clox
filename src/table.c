@@ -1,7 +1,6 @@
 #include "table.h"
 #include "memory.h"
 #include "object.h"
-#include <stdio.h>
 #include <string.h>
 
 #define TABLE_MAX_LOAD 0.75
@@ -17,7 +16,7 @@ void freeTable(Table *table) {
   initTable(table);
 }
 
-static Entry *findEntry(Entry *entries, int capacity, ObjString *key) {
+static Entry *findEntry(Entry *entries, int capacity, Value *key) {
   uint32_t index = key->hash % capacity;
   Entry *tombstone = nullptr;
 
@@ -36,7 +35,7 @@ static Entry *findEntry(Entry *entries, int capacity, ObjString *key) {
   }
 }
 
-bool tableGet(Table *table, ObjString *key, Value *value) {
+bool tableGet(Table *table, Value *key, Value *value) {
   if (table->count == 0)
     return false;
 
@@ -73,7 +72,7 @@ void adjustCapacity(Table *table, int capacity) {
   table->capacity = capacity;
 }
 
-bool tableSet(Table *table, ObjString *key, Value value) {
+bool tableSet(Table *table, Value *key, Value value) {
   if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
     int capacity = GROW_CAPACITY(table->capacity);
     adjustCapacity(table, capacity);
@@ -89,7 +88,7 @@ bool tableSet(Table *table, ObjString *key, Value value) {
   return isNewKey;
 }
 
-bool tableDelete(Table *table, ObjString *key) {
+bool tableDelete(Table *table, Value *key) {
   if (table->count == 0)
     return false;
 

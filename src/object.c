@@ -32,7 +32,7 @@ StringRef toStringRef(ObjString *string) {
   return (StringRef){.length = string->length, .content = getCString(string)};
 }
 
-ObjString *allocateString(int length, int count, ...) {
+Value allocateString(int length, int count, ...) {
   ObjString *string = (ObjString *)allocateObject(
       sizeof(ObjString) + sizeof(char) * (length + 1), OBJ_STRING);
 
@@ -51,7 +51,7 @@ ObjString *allocateString(int length, int count, ...) {
 
   string->hash = hashString(string->owned, length);
 
-  ObjString *interned =
+  Value interned =
       tableFindString(&vm.strings, string->owned, length, string->hash);
 
   if (interned != nullptr) {
@@ -63,9 +63,11 @@ ObjString *allocateString(int length, int count, ...) {
   string->length = length;
   string->isBorrowed = false;
 
-  tableSet(&vm.strings, string, NIL_VAL);
+  Value value = OBJ_VAL(string);
 
-  return string;
+  tableSet(&vm.strings, &value, NIL_VAL);
+
+  return value;
 }
 
 ObjString *borrowString(const char *chars, int length) {

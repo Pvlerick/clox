@@ -15,6 +15,7 @@ typedef enum {
 
 typedef struct {
   ValueType type;
+  uint64_t hash;
   union {
     bool boolean;
     double number;
@@ -31,16 +32,20 @@ typedef struct {
 #define AS_NUMBER(value) ((value).as.number)
 #define AS_OBJ(value) ((value).as.obj)
 
-#define BOOL_VAL(value) ((Value){VAL_BOOL, {.boolean = value}})
-#define NIL_VAL ((Value){VAL_NIL, {.number = 0}})
-#define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
-#define OBJ_VAL(value) ((Value){VAL_OBJ, {.obj = (Obj*)value}})
+#define BOOL_VAL(value) ((Value){VAL_BOOL, hashBool(value), {.boolean = value}})
+#define NIL_VAL ((Value){VAL_NIL, 0, {.number = 0}})
+#define NUMBER_VAL(value) ((Value){VAL_NUMBER, hashDouble(value), {.number = value}})
+#define OBJ_VAL(value) ((Value){VAL_OBJ, hashObj((Obj*)value), {.obj = (Obj*)value}})
 
 typedef struct {
   int capacity;
   int count;
   Value* values;
 } ValueArray;
+
+uint32_t hashBool(bool value);
+uint32_t hashDouble(double value);
+uint32_t hashObj(Obj *value);
 
 bool valuesEqual(Value a, Value b);
 void initValueArray(ValueArray* array);

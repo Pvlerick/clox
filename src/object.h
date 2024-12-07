@@ -26,7 +26,6 @@ struct Obj {
 //   char owned[]     // Will have n + 1 elements if owned
 // }
 // which would get rid of the wasted space for *borrowed if not used
-// This requires GCC 15 which I don't have :-)
 struct ObjString {
   Obj obj;
   int length;
