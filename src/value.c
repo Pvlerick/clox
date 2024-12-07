@@ -29,6 +29,19 @@ void freeValueArray(ValueArray *array) {
   initValueArray(array);
 }
 
+uint32_t hashBool(bool value) { return value ? 1 : 0; }
+
+uint32_t hashDouble(double value) { return value; }
+
+uint32_t hashObj(Obj *value) {
+  switch (value->type) {
+  case OBJ_STRING:
+    return ((ObjString *)value)->hash;
+  default:
+    return 0;
+  }
+}
+
 void printValue(Value value) {
   switch (value.type) {
   case VAL_BOOL:
