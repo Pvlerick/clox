@@ -25,13 +25,13 @@ typedef struct {
   HeapBlock *first;
 } Heap;
 
-#define HEAP_MAX 65535
+#define HEAP_MAX 131070
 
 Heap heap = {.first = nullptr};
 
 void initHeap() {
-  debug("MEM: heap size: %d bytes\n", HEAP_MAX);
-  debug("MEM: heap block size: %lu bytes\n", HEAP_BLOCK_SIZE);
+  trace("MEM: heap size: %d bytes\n", HEAP_MAX);
+  trace("MEM: heap block size: %lu bytes\n", HEAP_BLOCK_SIZE);
 
   void *heapStart = sbrk(HEAP_MAX);
 
@@ -46,21 +46,21 @@ void initHeap() {
 }
 
 void dumpHeapBlock(HeapBlock *block) {
-  debug("=== Heap Block Dump\n");
-  debug("Address: %p\n", block);
-  debug("Size: %zu\n", block->size);
-  debug("IsFree: %b\n", block->isFree);
-  debug("Content: %p\n", block->content);
-  debug("Previous: %p\n", block->previous);
-  debug("Next: %p\n", block->next);
-  debug("=== End Heap Block Dump\n");
+  trace("=== Heap Block Dump\n");
+  trace("Address: %p\n", block);
+  trace("Size: %zu\n", block->size);
+  trace("IsFree: %b\n", block->isFree);
+  trace("Content: %p\n", block->content);
+  trace("Previous: %p\n", block->previous);
+  trace("Next: %p\n", block->next);
+  trace("=== End Heap Block Dump\n");
 }
 
 void dumpHeap() {
   if (heap.first == nullptr)
     initHeap();
 
-  debug("== Heap Dump\n");
+  trace("== Heap Dump\n");
 
   HeapBlock *current = heap.first;
   while (current != nullptr) {
@@ -68,7 +68,7 @@ void dumpHeap() {
     current = current->next;
   }
 
-  debug("== End Heap Dump\n");
+  trace("== End Heap Dump\n");
 }
 
 void checkHeapIntegrity() {
@@ -101,7 +101,7 @@ void *__wrap_malloc(size_t size) {
 
   size_t alignedSize = ALIGN_TO_WORD_SIZE(size);
 
-  debug("MEM: allocation request for %zu bytes (aligned size for %zu)\n",
+  trace("MEM: allocation request for %zu bytes (aligned size for %zu)\n",
         alignedSize, size);
 
   HeapBlock *firstSuitable = heap.first;
@@ -110,13 +110,13 @@ void *__wrap_malloc(size_t size) {
             firstSuitable->size > alignedSize + HEAP_BLOCK_SIZE)))
     firstSuitable = firstSuitable->next;
 
-  debug("MEM: suitable block found at %p, block size: %lu\n", firstSuitable,
+  trace("MEM: suitable block found at %p, block size: %lu\n", firstSuitable,
         firstSuitable->size);
 
   if (firstSuitable->size == alignedSize) {
     // Requested size perfectly match free size, just update the block
     firstSuitable->isFree = false;
-    debug("MEM: allocated %zu bytes as %p\n", alignedSize,
+    trace("MEM: allocated %zu bytes as %p\n", alignedSize,
           firstSuitable->content);
     return firstSuitable->content;
   }
@@ -134,7 +134,7 @@ void *__wrap_malloc(size_t size) {
   firstSuitable->isFree = false;
   firstSuitable->next = next;
 
-  debug("MEM: allocated %zu bytes as %p\n", alignedSize,
+  trace("MEM: allocated %zu bytes as %p\n", alignedSize,
         firstSuitable->content);
   return firstSuitable->content;
 }
@@ -160,7 +160,7 @@ void __wrap_free(void *ptr) {
     err(EXIT_FAILURE, "Error: trying to free unallocated pointer: %p\n",
         current);
 
-  debug("MEM: freeing: %p\n", ptr);
+  trace("MEM: freeing: %p\n", ptr);
 
   current->isFree = true;
 

@@ -1,7 +1,7 @@
 #include "table.h"
 #include "memory.h"
 #include "object.h"
-#include <stdio.h>
+#include "value.h"
 #include <string.h>
 
 #define TABLE_MAX_LOAD 0.75
@@ -44,7 +44,8 @@ bool tableGet(Table *table, ObjString *key, Value *value) {
   if (entry == nullptr)
     return false;
 
-  value = &entry->value;
+  *value = entry->value;
+
   return true;
 }
 

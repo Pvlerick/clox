@@ -10,6 +10,7 @@ typedef struct {
   Chunk* chunk;
   uint8_t* ip;
   Stack stack;
+  Table globals;
   Table strings;
   Obj *objects;
 } VM;

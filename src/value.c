@@ -1,6 +1,5 @@
 #include <err.h>
 #include <stdio.h>
-#include <string.h>
 
 #include "memory.h"
 #include "object.h"
@@ -44,7 +43,7 @@ void printValue(Value value) {
     printObject(value);
     break;
   default:
-    err(64, "Unhandeled value type");
+    err(64, "Unhandeled value type: '%d'", value.type);
     break;
   }
 }
