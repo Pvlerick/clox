@@ -10,7 +10,7 @@ build-debug:
 	gcc -std=c2x $(mmm_linker_options) -D DEBUG -D DEBUG_TRACE_EXECUTION -D DEBUG_PRINT_CODE -o clox $(objects)
 
 build-trace:
-	gcc -std=c2x $(mmm_linker_options) -D DEBUG -D DEBUG_TRACE_MEMORY -D DEBUG_TRACE_EXECUTION -o clox $(objects)
+	gcc -std=c2x $(mmm_linker_options) -D DEBUG -D TRACE -D DEBUG_TRACE_MEMORY -D DEBUG_TRACE_EXECUTION -D DEBUG_PRINT_CODE -o clox $(objects)
 
 build-nommm:
 	gcc -std=c2x -o clox $(objects)

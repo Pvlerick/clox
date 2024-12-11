@@ -97,7 +97,7 @@ void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
   case OBJ_STRING:
     ObjString *string = AS_STRING(value);
-    printf("'%.*s'", string->length, getCString(string));
+    printf("%.*s", string->length, getCString(string));
     break;
   }
 }

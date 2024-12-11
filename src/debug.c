@@ -6,11 +6,30 @@
 #include <stdio.h>
 #endif
 
+#ifdef TRACE
+#include <stdio.h>
+#endif
+
 #include "chunk.h"
 #include "debug.h"
 
 int debug(const char *format, ...) {
 #ifdef DEBUG
+  va_list arg;
+  int done;
+
+  va_start(arg, format);
+  done = vfprintf(stdout, format, arg);
+  va_end(arg);
+
+  return done;
+#else
+  return 0;
+#endif
+}
+
+int trace(const char *format, ...) {
+#ifdef TRACE
   va_list arg;
   int done;
 
@@ -93,6 +112,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return simpleInstruction("OP_NOT", offset);
   case OP_NEGATE:
     return simpleInstruction("OP_NEGATE", offset);
+  case OP_PRINT:
+    return simpleInstruction("OP_PRINT", offset);
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
   default:
