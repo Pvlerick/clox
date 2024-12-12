@@ -13,6 +13,7 @@ typedef enum {
   OP_FALSE,
   OP_POP,
   OP_DEFINE_GLOBAL,
+  OP_DEFINE_GLOBAL_LONG,
   OP_EQUAL,
   OP_GREATER,
   OP_LESS,
@@ -34,11 +35,23 @@ typedef struct {
   ValueArray constants;
 } Chunk;
 
+typedef enum {
+  CONST,
+  CONST_LONG,
+} ConsType;
+
+typedef struct {
+  ConsType type;
+  union {
+    uint8_t constant;
+    int longConstant;
+  } as;
+} ConstRef;
+
 void initChunk(Chunk* chunk);
 void freeChunk(Chunk* chunk);
 void writeChunk(Chunk* chunk, uint8_t byte, int line);
-int addConstant(Chunk* chunk, Value value);
-void writeConstant(Chunk* chunk, Value value, int line);
+ConstRef writeConstant(Chunk* chunk, Value value, int line);
 int getLine(Chunk *chunk, int offset);
 
 #endif

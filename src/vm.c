@@ -72,6 +72,7 @@ static InterpretResult run() {
     vm.chunk->constants.values[*codeIndex];                                    \
   })
 #define READ_STRING() AS_STRING(READ_CONSTANT())
+#define READ_STRING_LONG() AS_STRING(READ_LONG_CONSTANT())
 #define BINARY_OP(valueType, op)                                               \
   do {                                                                         \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                          \
@@ -122,6 +123,11 @@ static InterpretResult run() {
       break;
     case OP_DEFINE_GLOBAL:
       ObjString *name = READ_STRING();
+      tableSet(&vm.globals, name, peek(0));
+      pop();
+      break;
+    case OP_DEFINE_GLOBAL_LONG:
+      ObjString *name_long = READ_STRING_LONG();
       tableSet(&vm.globals, name, peek(0));
       pop();
       break;

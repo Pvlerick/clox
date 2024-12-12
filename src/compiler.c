@@ -111,8 +111,8 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
 
 static void emitReturn() { emitByte(OP_RETURN); }
 
-static void emitConstant(Value value) {
-  writeConstant(currentChunk(), value, parser.previous.line);
+static ConstRef emitConstant(Value value) {
+  return writeConstant(currentChunk(), value, parser.previous.line);
 }
 
 static void endCompiler() {
@@ -130,23 +130,32 @@ static void declaration();
 static ParseRule *getRule(TokenType);
 static void parsePrecedence(Precedence);
 
-static uint8_t identifierConstant(Token *name) {
+static ConstRef identifierConstant(Token *name) {
   return emitConstant(OBJ_VAL(borrowString(name->start, name->length)));
 }
 
-static uint8_t parseVariable(const char *errorMessage) {
+static ConstRef parseVariable(const char *errorMessage) {
   consume(TOKEN_IDENTIFIER, errorMessage);
   return identifierConstant(&parser.previous);
 }
 
-static void defineVariable(uint8_t global) {
-  emitBytes(OP_DEFINE_GLOBAL, global);
+static void defineVariable(ConstRef global) {
+  switch (global.type) {
+  case CONST:
+    emitBytes(OP_DEFINE_GLOBAL, global.as.constant);
+    break;
+  case CONST_LONG:
+    uint8_t *addr = (uint8_t *)&global.as.longConstant;
+    emitByte(OP_DEFINE_GLOBAL_LONG);
+    emitByte(*addr);
+    emitByte(*(addr + 1));
+  }
 }
 
 static void expression() { parsePrecedence(PREC_ASSIGNMENT); }
 
 static void varDeclaration() {
-  uint8_t global = parseVariable("Expect variable name");
+  ConstRef global = parseVariable("Expect variable name");
 
   if (match(TOKEN_EQUAL)) {
     expression();
