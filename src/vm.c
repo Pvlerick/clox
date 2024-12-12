@@ -18,11 +18,13 @@ VM vm;
 void initVM() {
   initStack(&vm.stack);
   vm.objects = nullptr;
+  initTable(&vm.globals);
   initTable(&vm.strings);
 }
 
 void freeVM() {
   freeStack(&vm.stack);
+  freeTable(&vm.globals);
   freeTable(&vm.strings);
   freeObjects();
 }
@@ -69,6 +71,7 @@ static InterpretResult run() {
     vm.ip += 2;                                                                \
     vm.chunk->constants.values[*codeIndex];                                    \
   })
+#define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op)                                               \
   do {                                                                         \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                          \
@@ -113,6 +116,14 @@ static InterpretResult run() {
       Value a = pop();
       Value b = pop();
       push(BOOL_VAL(valuesEqual(a, b)));
+      break;
+    case OP_POP:
+      pop();
+      break;
+    case OP_DEFINE_GLOBAL:
+      ObjString *name = READ_STRING();
+      tableSet(&vm.globals, name, peek(0));
+      pop();
       break;
     case OP_GREATER:
       BINARY_OP(BOOL_VAL, >);
@@ -159,6 +170,7 @@ static InterpretResult run() {
       return INTERPRET_OK;
 
 #undef BINARY_OP
+#undef READ_STRING
 #undef READ_LONG_CONSTANT
 #undef READ_CONSTANT
 #undef READ_BYTE
