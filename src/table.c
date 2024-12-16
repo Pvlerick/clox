@@ -1,6 +1,7 @@
 #include "table.h"
 #include "memory.h"
 #include "object.h"
+#include "value.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -44,7 +45,8 @@ bool tableGet(Table *table, ObjString *key, Value *value) {
   if (entry == nullptr)
     return false;
 
-  value = &entry->value;
+  *value = entry->value;
+
   return true;
 }
 

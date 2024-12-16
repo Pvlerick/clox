@@ -4,10 +4,10 @@
 #include "memory.h"
 #include "object.h"
 #include "stack.h"
+#include "table.h"
 #include "value.h"
 #include <stdarg.h>
 #include <stdio.h>
-#include <string.h>
 
 #ifdef DEBUG_TRACE_EXECUTION
 #include "debug.h"
@@ -121,15 +121,35 @@ static InterpretResult run() {
     case OP_POP:
       pop();
       break;
+    case OP_GET_GLOBAL:
+    case OP_GET_GLOBAL_LONG:
+      ObjString *name_get =
+          instruction == OP_GET_GLOBAL ? READ_STRING() : READ_STRING_LONG();
+      Value value_get;
+      if (!tableGet(&vm.globals, name_get, &value_get)) {
+        runtimeError("Undefined variable '%.*s'.", name_get->length,
+                     getCString(name_get));
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      push(value_get);
+      break;
     case OP_DEFINE_GLOBAL:
-      ObjString *name = READ_STRING();
-      tableSet(&vm.globals, name, peek(0));
+    case OP_DEFINE_GLOBAL_LONG:
+      ObjString *name_define =
+          instruction == OP_DEFINE_GLOBAL ? READ_STRING() : READ_STRING_LONG();
+      tableSet(&vm.globals, name_define, peek(0));
       pop();
       break;
-    case OP_DEFINE_GLOBAL_LONG:
-      ObjString *name_long = READ_STRING_LONG();
-      tableSet(&vm.globals, name, peek(0));
-      pop();
+    case OP_SET_GLOBAL:
+    case OP_SET_GLOBAL_LONG:
+      ObjString *name_set =
+          instruction == OP_SET_GLOBAL ? READ_STRING() : READ_STRING_LONG();
+      if (tableSet(&vm.globals, name_set, peek(0))) {
+        tableDelete(&vm.globals, name_set);
+        runtimeError("Undefined variable '%.*s'.", name_set->length,
+                     getCString(name_set));
+        return INTERPRET_RUNTIME_ERROR;
+      }
       break;
     case OP_GREATER:
       BINARY_OP(BOOL_VAL, >);

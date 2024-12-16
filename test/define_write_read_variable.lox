@@ -1,0 +1,3 @@
+var foo;
+foo = 42;
+print foo;

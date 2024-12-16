@@ -25,7 +25,7 @@ typedef struct {
   HeapBlock *first;
 } Heap;
 
-#define HEAP_MAX 65535
+#define HEAP_MAX 131070
 
 Heap heap = {.first = nullptr};
 

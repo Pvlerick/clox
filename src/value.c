@@ -44,7 +44,7 @@ void printValue(Value value) {
     printObject(value);
     break;
   default:
-    err(64, "Unhandeled value type");
+    err(64, "Unhandeled value type: '%d'", value.type);
     break;
   }
 }
