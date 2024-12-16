@@ -1,3 +1,7 @@
-var foo;
-foo = 42;
+var foo = 42;
 print foo;
+foo = foo + 2;
+print foo;
+var bar = 43;
+bar = foo + bar;
+print bar;

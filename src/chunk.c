@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 
 #include "chunk.h"
 #include "line.h"
@@ -33,16 +34,24 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line) {
   chunk->count++;
 }
 
-ConstRef addConstant(Chunk *chunk, Value value) {
-  writeValueArray(&chunk->constants, value);
-  int constant = chunk->constants.count - 1;
-  ConstRef ref;
-  if (constant < 256) {
-    ConstRef ref = {.type = CONST, {.constant = constant}};
+static ConstRef makeConstRef(int index) {
+  if (index < 256) {
+    ConstRef ref = {.type = CONST, {.constant = index}};
+    return ref;
   } else {
-    ConstRef ref = {.type = CONST_LONG, {.longConstant = constant}};
+    ConstRef ref = {.type = CONST_LONG, {.longConstant = index}};
+    return ref;
   }
-  return ref;
+}
+
+ConstRef addConstant(Chunk *chunk, Value value) {
+  // Look in the constant table if the constant already exists
+  for (int i = 0; i < chunk->constants.count; i++)
+    if (valuesEqual(*(chunk->constants.values + i), value))
+      return makeConstRef(i);
+
+  writeValueArray(&chunk->constants, value);
+  return makeConstRef(chunk->constants.count - 1);
 }
 
 int getLine(Chunk *chunk, int offset) {
