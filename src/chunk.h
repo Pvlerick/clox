@@ -42,6 +42,7 @@ typedef struct {
 typedef enum {
   CONST,
   CONST_LONG,
+  CONST_NOT_A_CONST,
 } ConsType;
 
 typedef struct {

@@ -4,6 +4,7 @@
 #include "value.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -38,7 +39,19 @@ typedef struct {
   Precedence precedence;
 } ParseRule;
 
+typedef struct {
+  Token name;
+  int depth;
+} Local;
+
+typedef struct {
+  Local locals[UINT8_COUNT];
+  int localCount;
+  int scopeDepth;
+} Compiler;
+
 Parser parser;
+Compiler *current = nullptr;
 Chunk *compilingChunk;
 
 static Chunk *currentChunk() { return compilingChunk; }
@@ -90,10 +103,10 @@ static void consume(TokenType type, const char *message) {
   }
 }
 
-static bool checkType(TokenType type) { return parser.current.type == type; }
+static bool check(TokenType type) { return parser.current.type == type; }
 
 static bool match(TokenType type) {
-  if (!checkType(type))
+  if (!check(type))
     return false;
 
   advance();
@@ -131,6 +144,12 @@ static void emitConstant(Value value) {
   }
 }
 
+static void initCompiler(Compiler *compiler) {
+  compiler->localCount = 0;
+  compiler->scopeDepth = 0;
+  current = compiler;
+}
+
 static void endCompiler() {
   emitReturn();
 
@@ -139,6 +158,18 @@ static void endCompiler() {
     disassembleChunk(currentChunk(), "code");
   }
 #endif
+}
+
+static void beginScope() { current->scopeDepth++; }
+
+static void endScope() {
+  current->scopeDepth--;
+
+  while (current->localCount > 0 &&
+         current->locals[current->localCount - 1].depth > current->scopeDepth) {
+    emitByte(OP_POP);
+    current->localCount--;
+  }
 }
 
 static void statement();
@@ -150,12 +181,59 @@ static ConstRef identifierConstant(Token *name) {
   return makeConstant(OBJ_VAL(borrowString(name->start, name->length)));
 }
 
+static bool identifiersEqual(Token *a, Token *b) {
+  if (a->length != b->length)
+    return false;
+
+  return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static void addLocal(Token name) {
+  if (current->localCount == UINT8_COUNT) {
+    error("Too many local variables in function.");
+    return;
+  }
+
+  Local *local = &current->locals[current->localCount++];
+  local->name = name;
+  local->depth = current->scopeDepth;
+}
+
+static void declareVariable() {
+  if (current->scopeDepth == 0)
+    return;
+
+  Token *name = &parser.previous;
+
+  for (int i = current->localCount - 1; i >= 0; i--) {
+    Local *local = &current->locals[i];
+
+    if (local->depth != -1 && local->depth < current->scopeDepth)
+      break;
+
+    if (identifiersEqual(name, &local->name)) {
+      error("Already a variable with this name in this scope.");
+    }
+  }
+  addLocal(*name);
+}
+
 static ConstRef parseVariable(const char *errorMessage) {
   consume(TOKEN_IDENTIFIER, errorMessage);
+
+  declareVariable();
+  if (current->scopeDepth > 0) {
+    ConstRef ref = {.type = CONST_NOT_A_CONST};
+    return ref;
+  }
+
   return identifierConstant(&parser.previous);
 }
 
 static void defineVariable(ConstRef global) {
+  if (current->scopeDepth > 0)
+    return;
+
   switch (global.type) {
   case CONST:
     emitBytes(OP_DEFINE_GLOBAL, global.as.constant);
@@ -165,10 +243,21 @@ static void defineVariable(ConstRef global) {
     emitByte(OP_DEFINE_GLOBAL_LONG);
     emitByte(*addr);
     emitByte(*(addr + 1));
+    break;
+  default:
+    break;
   }
 }
 
 static void expression() { parsePrecedence(PREC_ASSIGNMENT); }
+
+static void block() {
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+    declaration();
+  }
+
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+}
 
 static void varDeclaration() {
   ConstRef global = parseVariable("Expect variable name");
@@ -234,6 +323,10 @@ static void declaration() {
 static void statement() {
   if (match(TOKEN_PRINT)) {
     printStatement();
+  } else if (match(TOKEN_LEFT_BRACE)) {
+    beginScope();
+    block();
+    endScope();
   } else {
     expressionStatement();
   }
@@ -434,6 +527,8 @@ static ParseRule *getRule(TokenType type) { return &rules[type]; }
 
 bool compile(const char *source, Chunk *chunk) {
   initScanner(source);
+  Compiler compiler;
+  initCompiler(&compiler);
   compilingChunk = chunk;
 
   parser.hadError = false;
