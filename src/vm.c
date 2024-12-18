@@ -121,6 +121,14 @@ static InterpretResult run() {
     case OP_POP:
       pop();
       break;
+    case OP_GET_LOCAL:
+      uint8_t slot_get = READ_BYTE();
+      push(*(vm.stack.values + slot_get));
+      break;
+    case OP_SET_LOCAL:
+      uint8_t slot_set = READ_BYTE();
+      *(vm.stack.values + slot_set) = peek(0);
+      break;
     case OP_GET_GLOBAL:
     case OP_GET_GLOBAL_LONG:
       ObjString *name_get =

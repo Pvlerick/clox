@@ -1,0 +1,8 @@
+var foo = 42;
+print foo;
+{
+  var bar = 43;
+  print bar;
+  bar = foo + bar;
+  print bar;
+}

@@ -1,0 +1,9 @@
+{
+  var a = 12;
+  {
+    var b = "Babar";
+    var c = false;
+    a = a + 4;
+    b = "Pom";
+  }
+}

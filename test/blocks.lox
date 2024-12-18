@@ -1,0 +1,7 @@
+var msg = "global";
+{
+  var msg = "local";
+  print msg;
+}
+print msg;
+print "bye";
