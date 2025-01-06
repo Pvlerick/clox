@@ -44,7 +44,6 @@ typedef struct {
 typedef enum {
   CONST,
   CONST_LONG,
-  CONST_NOT_A_CONST,
 } ConsType;
 
 typedef struct {
@@ -54,6 +53,19 @@ typedef struct {
     int longConstant;
   } as;
 } ConstRef;
+
+typedef enum {
+  VAR_GLOBAL,
+  VAR_LOCAL,
+} VariableType;
+
+typedef struct {
+  VariableType type;
+  bool readonly;
+  union {
+    ConstRef global;
+  } as;
+} VariableRef;
 
 void initChunk(Chunk* chunk);
 void freeChunk(Chunk* chunk);

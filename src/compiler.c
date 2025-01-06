@@ -42,6 +42,7 @@ typedef struct {
 typedef struct {
   Token name;
   int depth;
+  bool readonly;
 } Local;
 
 typedef struct {
@@ -201,7 +202,7 @@ static int resolveLocal(Compiler *compiler, Token *name) {
   return -1;
 }
 
-static void addLocal(Token name) {
+static void addLocal(Token name, bool readonly) {
   if (current->localCount == UINT8_COUNT) {
     error("Too many local variables in function.");
     return;
@@ -210,12 +211,10 @@ static void addLocal(Token name) {
   Local *local = &current->locals[current->localCount++];
   local->name = name;
   local->depth = -1;
+  local->readonly = readonly;
 }
 
-static void declareVariable() {
-  if (current->scopeDepth == 0)
-    return;
-
+static void declareVariable(bool readonly) {
   Token *name = &parser.previous;
 
   for (int i = current->localCount - 1; i >= 0; i--) {
@@ -229,38 +228,45 @@ static void declareVariable() {
     }
   }
 
-  addLocal(*name);
+  addLocal(*name, readonly);
 }
 
-// TODO Refactor: return a struct indicating if it's a local or a global
-static ConstRef parseVariable(const char *errorMessage) {
+static VariableRef parseVariable(const char *errorMessage) {
+  VariableRef ref;
+
+  ref.readonly = parser.previous.type == TOKEN_LET;
+
   consume(TOKEN_IDENTIFIER, errorMessage);
 
-  declareVariable();
-  if (current->scopeDepth > 0) {
-    ConstRef ref = {.type = CONST_NOT_A_CONST};
-    return ref;
+  if (current->scopeDepth == 0) {
+    ref.type = VAR_GLOBAL;
+    ref.as.global = identifierConstant(&parser.previous);
+  } else {
+    ref.type = VAR_LOCAL;
+    declareVariable(ref.readonly);
   }
 
-  return identifierConstant(&parser.previous);
+  return ref;
 }
 
-static void markInitialized() {
-  current->locals[current->localCount - 1].depth = current->scopeDepth;
+static void markInitialized(bool readonly) {
+  Local *local = &current->locals[current->localCount - 1];
+  local->depth = current->scopeDepth;
+  local->readonly = readonly;
 }
 
-static void defineVariable(ConstRef global) {
-  if (current->scopeDepth > 0) {
-    markInitialized();
+static void defineVariable(VariableRef ref) {
+  if (ref.type == VAR_LOCAL) {
+    markInitialized(ref.readonly);
     return;
   }
 
-  switch (global.type) {
+  switch (ref.as.global.type) {
   case CONST:
-    emitBytes(OP_DEFINE_GLOBAL, global.as.constant);
+    emitBytes(OP_DEFINE_GLOBAL, ref.as.global.as.constant);
     break;
   case CONST_LONG:
-    uint8_t *addr = (uint8_t *)&global.as.longConstant;
+    uint8_t *addr = (uint8_t *)&ref.as.global.as.longConstant;
     emitByte(OP_DEFINE_GLOBAL_LONG);
     emitByte(*addr);
     emitByte(*(addr + 1));
@@ -281,17 +287,20 @@ static void block() {
 }
 
 static void varDeclaration() {
-  ConstRef global = parseVariable("Expect variable name");
+  VariableRef ref = parseVariable("Expect variable name");
 
   if (match(TOKEN_EQUAL)) {
     expression();
   } else {
+    if (ref.readonly)
+      error("Expect expression after 'let'");
+
     emitByte(OP_NIL);
   }
 
   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaraion.");
 
-  defineVariable(global);
+  defineVariable(ref);
 }
 
 static void expressionStatement() {
@@ -316,6 +325,7 @@ static void synchronize() {
     switch (parser.previous.type) {
     case TOKEN_CLASS:
     case TOKEN_FUN:
+    case TOKEN_LET:
     case TOKEN_VAR:
     case TOKEN_FOR:
     case TOKEN_IF:
@@ -331,7 +341,7 @@ static void synchronize() {
 }
 
 static void declaration() {
-  if (match(TOKEN_VAR)) {
+  if (match(TOKEN_VAR) || match(TOKEN_LET)) {
     varDeclaration();
   } else {
     statement();
@@ -443,8 +453,6 @@ static void namedVariable(Token name, bool canAssign) {
         emitByte(*addr);
         emitByte(*(addr + 1));
         break;
-      case CONST_NOT_A_CONST:
-        break;
       }
     } else {
       switch (arg.type) {
@@ -457,12 +465,12 @@ static void namedVariable(Token name, bool canAssign) {
         emitByte(*addr);
         emitByte(*(addr + 1));
         break;
-      case CONST_NOT_A_CONST:
-        break;
       }
     }
   } else {
     if (canAssign && match(TOKEN_EQUAL)) {
+      if (current->locals[local].readonly)
+        error("Invalid assignment target: readonly variable");
       expression();
       emitBytes(OP_SET_LOCAL, local);
     } else {
@@ -529,6 +537,7 @@ ParseRule rules[] = {
     [TOKEN_SUPER] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_THIS] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_TRUE] = {literal, nullptr, PREC_NONE},
+    [TOKEN_LET] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_VAR] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_WHILE] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_ERROR] = {nullptr, nullptr, PREC_NONE},

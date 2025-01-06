@@ -1,0 +1,7 @@
+let no_assignment;
+let a = 12;
+a = 13;
+{
+  let b = 14;
+  b = 15;
+}
