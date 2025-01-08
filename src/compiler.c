@@ -1,4 +1,5 @@
 #include "chunk.h"
+#include "memory.h"
 #include "object.h"
 #include "scanner.h"
 #include "value.h"
@@ -46,9 +47,43 @@ typedef struct {
 } Local;
 
 typedef struct {
-  Local locals[UINT8_COUNT];
-  int localCount;
+  int capacity;
+  int count;
+  Local *items;
+} LocalArray;
+
+static void initLocalArray(LocalArray *array) {
+  array->count = 0;
+  array->capacity = 0;
+  array->items = nullptr;
+}
+
+static void writeLocalArray(LocalArray *array, Local item) {
+  if (array->capacity < array->count + 1) {
+    int oldCapactiy = array->capacity;
+    array->capacity = GROW_CAPACITY(oldCapactiy);
+    array->items =
+        GROW_ARRAY(Local, array->items, oldCapactiy, array->capacity);
+  }
+
+  array->items[array->count] = item;
+  array->count++;
+}
+
+static void deleteLastLocalArray(LocalArray *array) {
+  if (array->count > 0) {
+    array->count--;
+  }
+}
+
+static void freeLocalArray(LocalArray *array) {
+  FREE_ARRAY(Local, array->items, array->capacity);
+  initLocalArray(array);
+}
+
+typedef struct {
   int scopeDepth;
+  LocalArray locals;
 } Compiler;
 
 Parser parser;
@@ -146,12 +181,12 @@ static void emitConstant(Value value) {
 }
 
 static void initCompiler(Compiler *compiler) {
-  compiler->localCount = 0;
   compiler->scopeDepth = 0;
+  initLocalArray(&compiler->locals);
   current = compiler;
 }
 
-static void endCompiler() {
+static void endCompiler(Compiler *compiler) {
   emitReturn();
 
 #ifdef DEBUG_PRINT_CODE
@@ -159,6 +194,8 @@ static void endCompiler() {
     disassembleChunk(currentChunk(), "code");
   }
 #endif
+
+  freeLocalArray(&compiler->locals);
 }
 
 static void beginScope() { current->scopeDepth++; }
@@ -166,10 +203,12 @@ static void beginScope() { current->scopeDepth++; }
 static void endScope() {
   current->scopeDepth--;
 
-  while (current->localCount > 0 &&
-         current->locals[current->localCount - 1].depth > current->scopeDepth) {
+  while (current->locals.count > 0 &&
+         current->locals.items[current->locals.count - 1].depth >
+             current->scopeDepth) {
     emitByte(OP_POP);
-    current->localCount--;
+
+    deleteLastLocalArray(&current->locals);
   }
 }
 
@@ -190,8 +229,8 @@ static bool identifiersEqual(Token *a, Token *b) {
 }
 
 static int resolveLocal(Compiler *compiler, Token *name) {
-  for (int i = compiler->localCount - 1; i >= 0; i--) {
-    Local *local = &compiler->locals[i];
+  for (int i = compiler->locals.count - 1; i >= 0; i--) {
+    Local *local = &compiler->locals.items[i];
     if (identifiersEqual(name, &local->name)) {
       if (local->depth == -1) {
         error("Can't read local variable in its own initializer.");
@@ -203,22 +242,15 @@ static int resolveLocal(Compiler *compiler, Token *name) {
 }
 
 static void addLocal(Token name, bool readonly) {
-  if (current->localCount == UINT8_COUNT) {
-    error("Too many local variables in function.");
-    return;
-  }
-
-  Local *local = &current->locals[current->localCount++];
-  local->name = name;
-  local->depth = -1;
-  local->readonly = readonly;
+  Local local = {.name = name, .depth = -1, .readonly = readonly};
+  writeLocalArray(&current->locals, local);
 }
 
 static void declareVariable(bool readonly) {
   Token *name = &parser.previous;
 
-  for (int i = current->localCount - 1; i >= 0; i--) {
-    Local *local = &current->locals[i];
+  for (int i = current->locals.count - 1; i >= 0; i--) {
+    Local *local = &current->locals.items[i];
 
     if (local->depth != -1 && local->depth < current->scopeDepth)
       break;
@@ -250,7 +282,7 @@ static VariableRef parseVariable(const char *errorMessage) {
 }
 
 static void markInitialized(bool readonly) {
-  Local *local = &current->locals[current->localCount - 1];
+  Local *local = &current->locals.items[current->locals.count - 1];
   local->depth = current->scopeDepth;
   local->readonly = readonly;
 }
@@ -436,11 +468,10 @@ static void string(bool canAssign) {
 }
 
 static void namedVariable(Token name, bool canAssign) {
-  int local = resolveLocal(current, &name);
+  int localIndex = resolveLocal(current, &name);
 
-  if (local == -1) {
+  if (localIndex == -1) {
     ConstRef arg = identifierConstant(&name);
-    // TODO Refactor
     if (canAssign && match(TOKEN_EQUAL)) {
       expression();
       switch (arg.type) {
@@ -469,12 +500,12 @@ static void namedVariable(Token name, bool canAssign) {
     }
   } else {
     if (canAssign && match(TOKEN_EQUAL)) {
-      if (current->locals[local].readonly)
+      if (current->locals.items[localIndex].readonly)
         error("Invalid assignment target: readonly variable");
       expression();
-      emitBytes(OP_SET_LOCAL, local);
+      emitBytes(OP_SET_LOCAL, localIndex);
     } else {
-      emitBytes(OP_GET_LOCAL, local);
+      emitBytes(OP_GET_LOCAL, localIndex);
     }
   }
 }
@@ -585,6 +616,7 @@ bool compile(const char *source, Chunk *chunk) {
     declaration();
   }
 
-  endCompiler();
+  endCompiler(&compiler);
+
   return !parser.hadError;
 }
