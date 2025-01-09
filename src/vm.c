@@ -7,6 +7,7 @@
 #include "table.h"
 #include "value.h"
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -64,13 +65,9 @@ static void concatenate() {
 
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
+#define READ_SHORT() (vm.ip += 2, (uint16_t)((vm.ip[-2] << 8) | vm.ip[-1]))
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
-#define READ_LONG_CONSTANT()                                                   \
-  ({                                                                           \
-    uint16_t *codeIndex = (uint16_t *)&vm.ip[0];                               \
-    vm.ip += 2;                                                                \
-    vm.chunk->constants.values[*codeIndex];                                    \
-  })
+#define READ_LONG_CONSTANT() vm.chunk->constants.values[READ_SHORT()]
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define READ_STRING_LONG() AS_STRING(READ_LONG_CONSTANT())
 #define BINARY_OP(valueType, op)                                               \
@@ -200,14 +197,28 @@ static InterpretResult run() {
       printValue(pop());
       printf("\n");
       break;
+    case OP_JUMP:
+      uint16_t offset_j = READ_SHORT();
+      vm.ip += offset_j;
+      break;
+    case OP_JUMP_IF_FALSE:
+      uint16_t offset_jif = READ_SHORT();
+      if (isFalsey(peek(0)))
+        vm.ip += offset_jif;
+      break;
+    case OP_LOOP:
+      uint16_t offset_loop = READ_SHORT();
+      vm.ip -= offset_loop;
+      break;
     case OP_RETURN:
       return INTERPRET_OK;
 
 #undef BINARY_OP
-#undef READ_STRING
 #undef READ_STRING_LONG
+#undef READ_STRING
 #undef READ_LONG_CONSTANT
 #undef READ_CONSTANT
+#undef READ_SHORT
 #undef READ_BYTE
     }
     }
@@ -218,9 +229,7 @@ InterpretResult interpret(const char *source) {
   Chunk chunk;
   initChunk(&chunk);
 
-  puts("before compile");
   bool res = compile(source, &chunk);
-  puts("after compile");
 
   if (!res) {
     freeChunk(&chunk);

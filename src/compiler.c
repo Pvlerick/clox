@@ -158,6 +158,24 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte2);
 }
 
+static void emitLoop(int loopStart) {
+  emitByte(OP_LOOP);
+
+  int offset = currentChunk()->count - loopStart + 2;
+  if (offset > UINT16_MAX)
+    error("Loop body too large.");
+
+  emitByte((offset >> 8) & 0xff);
+  emitByte(offset & 0xff);
+}
+
+static int emitJump(uint8_t instruction) {
+  emitByte(instruction);
+  emitByte(0xff);
+  emitByte(0xff);
+  return currentChunk()->count - 2;
+}
+
 static void emitReturn() { emitByte(OP_RETURN); }
 
 static ConstRef makeConstant(Value value) {
@@ -174,10 +192,22 @@ static void emitConstant(Value value) {
   case CONST_LONG:
     emitByte(OP_CONSTANT_LONG);
     uint8_t *addr = (uint8_t *)&ref.as.longConstant;
-    emitByte(*addr);
     emitByte(*(addr + 1));
+    emitByte(*addr);
     break;
   }
+}
+
+static void patchJump(int offset) {
+  // -2 to adjust for the bytecode for the jump offset itself.
+  int jump = currentChunk()->count - offset - 2;
+
+  if (jump > UINT8_MAX) {
+    error("Too much code to jump over.");
+  }
+
+  currentChunk()->code[offset] = (jump >> 8) & 0xff;
+  currentChunk()->code[offset + 1] = jump & 0xff;
 }
 
 static void initCompiler(Compiler *compiler) {
@@ -300,12 +330,21 @@ static void defineVariable(VariableRef ref) {
   case CONST_LONG:
     uint8_t *addr = (uint8_t *)&ref.as.global.as.longConstant;
     emitByte(OP_DEFINE_GLOBAL_LONG);
-    emitByte(*addr);
     emitByte(*(addr + 1));
+    emitByte(*addr);
     break;
   default:
     break;
   }
+}
+
+static void and_(bool canAssign) {
+  int endJump = emitJump(OP_JUMP_IF_FALSE);
+
+  emitByte(OP_POP);
+  parsePrecedence(PREC_AND);
+
+  patchJump(endJump);
 }
 
 static void expression() { parsePrecedence(PREC_ASSIGNMENT); }
@@ -341,10 +380,90 @@ static void expressionStatement() {
   emitByte(OP_POP);
 }
 
+static void forStatement() {
+  beginScope();
+
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+  if (match(TOKEN_SEMICOLON)) {
+    // No initializer
+  } else if (match(TOKEN_VAR)) {
+    varDeclaration();
+  } else {
+    expressionStatement();
+  }
+
+  int loopStart = currentChunk()->count;
+  int exitJump = -1;
+
+  if (!match(TOKEN_SEMICOLON)) {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
+    // Jump out of the loop if condition is false
+    exitJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP);
+  }
+
+  if (!match(TOKEN_RIGHT_PAREN)) {
+    int bodyJump = emitJump(OP_JUMP);
+    int incrementStart = currentChunk()->count;
+    expression();
+    emitByte(OP_POP);
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+
+    emitLoop(loopStart);
+    loopStart = incrementStart;
+    patchJump(bodyJump);
+  }
+
+  statement();
+
+  emitLoop(loopStart);
+
+  if (exitJump != -1) {
+    patchJump(exitJump);
+    emitByte(OP_POP);
+  }
+
+  endScope();
+}
+
+static void ifStatement() {
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+  int thenJump = emitJump(OP_JUMP_IF_FALSE);
+  emitByte(OP_POP);
+  statement();
+
+  int elseJump = emitJump(OP_JUMP);
+  patchJump(thenJump);
+  emitByte(OP_POP);
+
+  if (match(TOKEN_ELSE))
+    statement();
+  patchJump(elseJump);
+}
+
 static void printStatement() {
   expression();
   consume(TOKEN_SEMICOLON, "Expect ';' after value.");
   emitByte(OP_PRINT);
+}
+
+static void whileStatement() {
+  int loopStart = currentChunk()->count;
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+  int exitJump = emitJump(OP_JUMP_IF_FALSE);
+  emitByte(OP_POP);
+  statement();
+  emitLoop(loopStart);
+
+  patchJump(exitJump);
+  emitByte(OP_POP);
 }
 
 static void synchronize() {
@@ -386,6 +505,12 @@ static void declaration() {
 static void statement() {
   if (match(TOKEN_PRINT)) {
     printStatement();
+  } else if (match(TOKEN_FOR)) {
+    forStatement();
+  } else if (match(TOKEN_IF)) {
+    ifStatement();
+  } else if (match(TOKEN_WHILE)) {
+    whileStatement();
   } else if (match(TOKEN_LEFT_BRACE)) {
     beginScope();
     block();
@@ -462,6 +587,17 @@ static void number(bool canAssign) {
   emitConstant(NUMBER_VAL(value));
 }
 
+static void or_(bool canAssign) {
+  int elseJump = emitJump(OP_JUMP_IF_FALSE);
+  int endJump = emitJump(OP_JUMP);
+
+  patchJump(elseJump);
+  emitByte(OP_POP);
+
+  parsePrecedence(PREC_OR);
+  patchJump(endJump);
+}
+
 static void string(bool canAssign) {
   emitConstant(OBJ_VAL(
       borrowString(parser.previous.start + 1, parser.previous.length - 2)));
@@ -481,8 +617,8 @@ static void namedVariable(Token name, bool canAssign) {
       case CONST_LONG:
         uint8_t *addr = (uint8_t *)&arg.as.longConstant;
         emitByte(OP_SET_GLOBAL_LONG);
-        emitByte(*addr);
         emitByte(*(addr + 1));
+        emitByte(*addr);
         break;
       }
     } else {
@@ -493,8 +629,8 @@ static void namedVariable(Token name, bool canAssign) {
       case CONST_LONG:
         uint8_t *addr = (uint8_t *)&arg.as.longConstant;
         emitByte(OP_GET_GLOBAL_LONG);
-        emitByte(*addr);
         emitByte(*(addr + 1));
+        emitByte(*addr);
         break;
       }
     }
@@ -554,7 +690,7 @@ ParseRule rules[] = {
     [TOKEN_IDENTIFIER] = {variable, nullptr, PREC_NONE},
     [TOKEN_STRING] = {string, nullptr, PREC_NONE},
     [TOKEN_NUMBER] = {number, nullptr, PREC_NONE},
-    [TOKEN_AND] = {nullptr, nullptr, PREC_NONE},
+    [TOKEN_AND] = {nullptr, and_, PREC_AND},
     [TOKEN_CLASS] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_ELSE] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_FALSE] = {literal, nullptr, PREC_NONE},
@@ -562,7 +698,7 @@ ParseRule rules[] = {
     [TOKEN_FUN] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_IF] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_NIL] = {literal, nullptr, PREC_NONE},
-    [TOKEN_OR] = {nullptr, nullptr, PREC_NONE},
+    [TOKEN_OR] = {nullptr, or_, PREC_OR},
     [TOKEN_PRINT] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_RETURN] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_SUPER] = {nullptr, nullptr, PREC_NONE},
