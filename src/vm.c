@@ -233,17 +233,10 @@ InterpretResult interpret(const char *source) {
   Chunk chunk;
   initChunk(&chunk);
 
-  bool res = compile(source, &chunk);
-
-  if (!res) {
+  if (!compile(source, &chunk)) {
     freeChunk(&chunk);
     return INTERPRET_COMPILE_ERROR;
   }
-
-  // if (!compile(source, &chunk)) {
-  //   freeChunk(&chunk);
-  //   return INTERPRET_COMPILE_ERROR;
-  // }
 
   vm.chunk = &chunk;
   vm.ip = vm.chunk->code;

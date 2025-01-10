@@ -1,3 +1,4 @@
-for (var i = 0; i < 10; i = i + 1){
-  print i;
+for (var a = 0; a < 10; a = a + 1)
+  if (a > 5) continue;
+  print a;
 }

@@ -1,0 +1,12 @@
+// scope 0
+for (var i = 10; i < 13; i = i + 1) {
+  // scope 1
+  if (i < 11) {
+    // scope 2
+    // var a = "a in scope 2";
+    // var b = "b in scope 2";
+    // var c = "c in scope 2";
+    continue;
+  }
+  print i;
+}

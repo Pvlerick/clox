@@ -70,19 +70,20 @@ static void writeLocalArray(LocalArray *array, Local item) {
   array->count++;
 }
 
-static void deleteLastLocalArray(LocalArray *array) {
-  if (array->count > 0) {
-    array->count--;
-  }
-}
-
 static void freeLocalArray(LocalArray *array) {
   FREE_ARRAY(Local, array->items, array->capacity);
   initLocalArray(array);
 }
 
 typedef struct {
+  int start;
   int scopeDepth;
+} LoopReference;
+
+typedef struct {
+  int scopeDepth;
+  int loopDepth;
+  LoopReference loopReference[UINT8_MAX];
   LocalArray locals;
 } Compiler;
 
@@ -212,6 +213,7 @@ static void patchJump(int offset) {
 
 static void initCompiler(Compiler *compiler) {
   compiler->scopeDepth = 0;
+  compiler->loopDepth = 0;
   initLocalArray(&compiler->locals);
   current = compiler;
 }
@@ -237,10 +239,17 @@ static void endScope() {
          current->locals.items[current->locals.count - 1].depth >
              current->scopeDepth) {
     emitByte(OP_POP);
-
-    deleteLastLocalArray(&current->locals);
+    current->locals.count--;
   }
 }
+
+static void beginLoop(int loopStart) {
+  current->loopReference[current->loopDepth].start = loopStart;
+  current->loopReference[current->loopDepth].scopeDepth = current->scopeDepth;
+  current->loopDepth += 1;
+}
+
+static void endLoop() { current->loopDepth -= 1; }
 
 static void statement();
 static void declaration();
@@ -380,6 +389,23 @@ static void expressionStatement() {
   emitByte(OP_POP);
 }
 
+static void continueStatement() {
+  if (current->loopDepth == 0)
+    error("Expect 'continue' inside loop statements only.");
+
+  consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
+
+  // Pop all the locals that are in scopes deeper than the loop start depth
+  for (int i = current->locals.count;
+       i > 0 && current->locals.items[i - 1].depth >
+                    current->loopReference[current->loopDepth - 1].scopeDepth;
+       i--) {
+    emitByte(OP_POP);
+  }
+
+  emitLoop(current->loopReference[current->loopDepth - 1].start);
+}
+
 static void switchStatement() {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
   expression();
@@ -438,6 +464,7 @@ static void forStatement() {
   }
 
   int loopStart = currentChunk()->count;
+
   int exitJump = -1;
 
   if (!match(TOKEN_SEMICOLON)) {
@@ -460,6 +487,8 @@ static void forStatement() {
     patchJump(bodyJump);
   }
 
+  beginLoop(loopStart);
+
   statement();
 
   emitLoop(loopStart);
@@ -468,6 +497,8 @@ static void forStatement() {
     patchJump(exitJump);
     emitByte(OP_POP);
   }
+
+  endLoop();
 
   endScope();
 }
@@ -498,6 +529,8 @@ static void printStatement() {
 
 static void whileStatement() {
   int loopStart = currentChunk()->count;
+  beginLoop(loopStart);
+
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
@@ -509,6 +542,8 @@ static void whileStatement() {
 
   patchJump(exitJump);
   emitByte(OP_POP);
+
+  endLoop();
 }
 
 static void synchronize() {
@@ -550,12 +585,14 @@ static void declaration() {
 static void statement() {
   if (match(TOKEN_PRINT)) {
     printStatement();
-  } else if (match(TOKEN_SWITCH)) {
-    switchStatement();
+  } else if (match(TOKEN_CONTINUE)) {
+    continueStatement();
   } else if (match(TOKEN_FOR)) {
     forStatement();
   } else if (match(TOKEN_IF)) {
     ifStatement();
+  } else if (match(TOKEN_SWITCH)) {
+    switchStatement();
   } else if (match(TOKEN_WHILE)) {
     whileStatement();
   } else if (match(TOKEN_LEFT_BRACE)) {

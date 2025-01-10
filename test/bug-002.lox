@@ -1,0 +1,27 @@
+var a = 0;
+while (a <= 10) {
+  a = a + 1;
+  if (a < 5) {
+    print "more or eq to 3";
+    var b = a + 1;
+    if (b > 2) {
+      print "more than 2";
+      continue;
+    }
+    else {
+      print "less than 2, still going forth";
+    }
+  }
+  else {
+    var c = a;
+    if (c > 3) {
+      print "more than 3";
+      var d = c + 100;
+      print d;
+      if (d - 50 < 10) {
+        continue;
+      }
+    }
+  }
+  print a;
+}
