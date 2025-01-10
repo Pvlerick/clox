@@ -1,0 +1,12 @@
+for (var b = 0; b < 10; b = b + 1) {
+  if (b > 5) {
+    var b = 0;
+    {
+      var c = 1;
+      // Make sure all local variables are cleaned up
+      continue;
+    }
+  }
+  print b;
+}
+

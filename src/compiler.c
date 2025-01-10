@@ -82,7 +82,14 @@ static void freeLocalArray(LocalArray *array) {
 }
 
 typedef struct {
+  int start;
   int scopeDepth;
+} LoopReference;
+
+typedef struct {
+  int scopeDepth;
+  int loopDepth;
+  LoopReference loopReference[UINT8_MAX];
   LocalArray locals;
 } Compiler;
 
@@ -212,6 +219,7 @@ static void patchJump(int offset) {
 
 static void initCompiler(Compiler *compiler) {
   compiler->scopeDepth = 0;
+  compiler->loopDepth = 0;
   initLocalArray(&compiler->locals);
   current = compiler;
 }
@@ -240,6 +248,26 @@ static void endScope() {
 
     deleteLastLocalArray(&current->locals);
   }
+}
+
+static void enterLoop(int loopStart) {
+  LoopReference ref = {.start = loopStart, .scopeDepth = current->scopeDepth};
+  current->loopReference[current->loopDepth] = ref;
+  current->loopDepth += 1;
+}
+
+static void exitLoop() {
+  int scopesToPop = current->loopReference[current->loopDepth - 1].scopeDepth -
+                    current->scopeDepth;
+
+  printf("got %d scope to pop...\n", scopesToPop);
+
+  while (scopesToPop > 0) {
+    endScope();
+    scopesToPop -= 1;
+  }
+
+  current->loopDepth -= 1;
 }
 
 static void statement();
@@ -380,6 +408,15 @@ static void expressionStatement() {
   emitByte(OP_POP);
 }
 
+static void continueStatement() {
+  if (current->loopDepth == 0)
+    error("Expect 'continue' inside loop statements only.");
+
+  consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
+
+  emitLoop(current->loopReference[current->loopDepth - 1].start);
+}
+
 static void switchStatement() {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
   expression();
@@ -438,6 +475,7 @@ static void forStatement() {
   }
 
   int loopStart = currentChunk()->count;
+
   int exitJump = -1;
 
   if (!match(TOKEN_SEMICOLON)) {
@@ -451,6 +489,7 @@ static void forStatement() {
   if (!match(TOKEN_RIGHT_PAREN)) {
     int bodyJump = emitJump(OP_JUMP);
     int incrementStart = currentChunk()->count;
+    enterLoop(incrementStart);
     expression();
     emitByte(OP_POP);
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
@@ -468,6 +507,8 @@ static void forStatement() {
     patchJump(exitJump);
     emitByte(OP_POP);
   }
+
+  exitLoop();
 
   endScope();
 }
@@ -498,6 +539,8 @@ static void printStatement() {
 
 static void whileStatement() {
   int loopStart = currentChunk()->count;
+  enterLoop(loopStart);
+
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
@@ -509,6 +552,8 @@ static void whileStatement() {
 
   patchJump(exitJump);
   emitByte(OP_POP);
+
+  exitLoop();
 }
 
 static void synchronize() {
@@ -550,12 +595,14 @@ static void declaration() {
 static void statement() {
   if (match(TOKEN_PRINT)) {
     printStatement();
-  } else if (match(TOKEN_SWITCH)) {
-    switchStatement();
+  } else if (match(TOKEN_CONTINUE)) {
+    continueStatement();
   } else if (match(TOKEN_FOR)) {
     forStatement();
   } else if (match(TOKEN_IF)) {
     ifStatement();
+  } else if (match(TOKEN_SWITCH)) {
+    switchStatement();
   } else if (match(TOKEN_WHILE)) {
     whileStatement();
   } else if (match(TOKEN_LEFT_BRACE)) {
