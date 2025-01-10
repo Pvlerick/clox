@@ -380,6 +380,51 @@ static void expressionStatement() {
   emitByte(OP_POP);
 }
 
+static void switchStatement() {
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+  consume(TOKEN_LEFT_BRACE, "Expect '{' after switch condition.");
+
+  int caseJumps[UINT8_MAX];
+  uint8_t caseCount = 0;
+
+  int nextCase = -1;
+  while (match(TOKEN_CASE)) {
+    if (nextCase != -1) {
+      patchJump(nextCase);
+      emitByte(OP_POP);
+    }
+    expression();
+    consume(TOKEN_COLON, "Expect ':' after case expression");
+    // Compare stack values, but unlike OP_EQUAL leave the first value on it
+    emitByte(OP_CMP);
+    nextCase = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP);
+    while (!check(TOKEN_CASE) && !check(TOKEN_DEFAULT))
+      statement();
+    caseJumps[caseCount++] = emitJump(OP_JUMP);
+  }
+  if (nextCase != -1) {
+    patchJump(nextCase);
+    emitByte(OP_POP);
+  }
+
+  if (match(TOKEN_DEFAULT)) {
+    consume(TOKEN_COLON, "Expect ':' after default");
+    while (!check(TOKEN_RIGHT_BRACE))
+      statement();
+    caseJumps[caseCount++] = emitJump(OP_JUMP);
+  }
+
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after switch statement.");
+
+  for (uint8_t i = 0; i < caseCount; i++) {
+    patchJump(caseJumps[i]);
+  }
+}
+
 static void forStatement() {
   beginScope();
 
@@ -505,6 +550,8 @@ static void declaration() {
 static void statement() {
   if (match(TOKEN_PRINT)) {
     printStatement();
+  } else if (match(TOKEN_SWITCH)) {
+    switchStatement();
   } else if (match(TOKEN_FOR)) {
     forStatement();
   } else if (match(TOKEN_IF)) {

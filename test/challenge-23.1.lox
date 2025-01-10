@@ -1,0 +1,17 @@
+print "start";
+
+var a = 40;
+
+switch (a) {
+  case 41:
+    print 41;
+  case 42:
+    print 42;
+    print "the answer to everything";
+  case 43:
+    print 43;
+  default:
+    print "default case";
+}
+
+print "done";

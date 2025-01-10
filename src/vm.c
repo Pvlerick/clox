@@ -111,9 +111,13 @@ static InterpretResult run() {
       push(BOOL_VAL(false));
       break;
     case OP_EQUAL:
-      Value a = pop();
-      Value b = pop();
-      push(BOOL_VAL(valuesEqual(a, b)));
+      Value a_eq = pop();
+      Value b_eq = pop();
+      push(BOOL_VAL(valuesEqual(a_eq, b_eq)));
+      break;
+    case OP_CMP:
+      Value a_cmp = pop();
+      push(BOOL_VAL(valuesEqual(a_cmp, peek(0))));
       break;
     case OP_POP:
       pop();
