@@ -2,6 +2,7 @@
 #include "memory.h"
 #include "object.h"
 #include "value.h"
+#include <stdio.h>
 #include <string.h>
 
 #define TABLE_MAX_LOAD 0.75
@@ -29,8 +30,10 @@ static Entry *findEntry(Entry *entries, int capacity, ObjString *key) {
         return tombstone != nullptr ? tombstone : entry;
       else if (tombstone == nullptr) // Tombstone
         tombstone = entry;
-    } else if (entry->key == key) // Found it
+    } else if (entry->key->hash == key->hash) // Found it
+    {
       return entry;
+    }
 
     index = (index + 1) % capacity;
   }
@@ -130,5 +133,19 @@ ObjString *tableFindString(Table *table, const char *chars, int length,
     }
 
     index = (index + 1) % table->capacity;
+  }
+}
+
+void tableDump(Table *table) {
+  printf("dumping table (count: %d, capacity: %d)\n", table->count,
+         table->capacity);
+  for (int i = 0; i < table->capacity; i++) {
+    Entry *entry = &table->entries[i];
+    if (entry->key != nullptr) {
+      printf("[%d '%.*s' %d] -> ", i, entry->key->length,
+             getCString(entry->key), entry->key->hash);
+      printValue(entry->value);
+      printf("\n");
+    }
   }
 }

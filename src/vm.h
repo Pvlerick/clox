@@ -6,9 +6,17 @@
 #include "stack.h"
 #include "table.h"
 
+#define FRAMES_MAX 64
+
 typedef struct {
-  Chunk* chunk;
-  uint8_t* ip;
+  ObjFunction *function;
+  uint8_t *ip;
+  int stackIndex;
+} CallFrame;
+
+typedef struct {
+  CallFrame frames[FRAMES_MAX];
+  int frameCount;
   Stack stack;
   Table globals;
   Table strings;

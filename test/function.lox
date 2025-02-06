@@ -1,0 +1,9 @@
+fun sum(a, b, c) {
+  var x = 10;
+  var y = 20;
+  return x + y + a + b + c;
+}
+
+var x = sum(2, 3, 4);
+
+print x;

@@ -7,10 +7,7 @@ void addInstructionLine(LineArray *array, int offset, int line) {
   if (array->count > 0 && array->items[array->count - 1].line == line) {
     array->items[array->count - 1].offsetEnd = offset;
   } else {
-    LineItem item;
-    item.line = line;
-    item.offsetStart = offset;
-    item.offsetEnd = offset;
+    LineItem item = {.line = line, .offsetStart = offset, .offsetEnd = offset};
     writeLineArray(array, &item);
   }
 }

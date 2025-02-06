@@ -1,4 +1,5 @@
 #include "object.h"
+#include "common.h"
 #include "memory.h"
 #include "value.h"
 #include "vm.h"
@@ -17,6 +18,39 @@ static Obj *allocateObject(size_t size, ObjType type) {
   vm.objects = obj;
 
   return obj;
+}
+
+ObjString *newOwnedString(const char *start, size_t length) {
+  ObjString *string =
+      (ObjString *)allocateObject(sizeof(ObjString) + length, OBJ_STRING);
+
+  string->length = length;
+  string->isBorrowed = false;
+  string->hash = hashString(start, length);
+  memcpy((void *)string->content, (void *)start, length);
+
+  return string;
+}
+
+ObjFunction *newFunction() {
+  ObjFunction *fun = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
+  fun->arity = 0;
+  fun->name = NULL;
+  initChunk(&fun->chunk);
+  return fun;
+}
+
+ObjNative *newNative(NativeFn fun) {
+  ObjNative *native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
+  native->function = fun;
+  return native;
+}
+
+static void printFunction(ObjFunction *fun) {
+  if (fun->name == nullptr)
+    printf("<script>");
+  else
+    printf("<fn %.*s>", fun->name->length, getCString(fun->name));
 }
 
 uint32_t hashString(const char *key, int length) {
@@ -95,6 +129,12 @@ const char *getCString(ObjString *string) {
 
 void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
+  case OBJ_FUNCTION:
+    printFunction(AS_FUNCTION(value));
+    break;
+  case OBJ_NATIVE:
+    printf("<native fn>");
+    break;
   case OBJ_STRING:
     ObjString *string = AS_STRING(value);
     printf("%.*s", string->length, getCString(string));

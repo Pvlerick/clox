@@ -38,3 +38,19 @@ Value popFromStack(Stack *stack) {
 Value peekFromStack(Stack *stack, int distance) {
   return stack->top[-1 - distance];
 }
+
+Value stackGet(Stack *stack, int index) { return stack->values[index]; }
+
+void stackSet(Stack *stack, int index, Value value) {
+  stack->values[index] = value;
+}
+
+void stackReset(Stack *stack, int index) {
+  stack->count = index;
+  stack->top = &stack->values[stack->count];
+}
+
+void stackDrop(Stack *stack, int count) {
+  stack->top -= count;
+  stack->count -= count;
+}

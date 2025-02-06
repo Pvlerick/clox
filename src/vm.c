@@ -9,6 +9,8 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
+#include <time.h>
 
 #ifdef DEBUG_TRACE_EXECUTION
 #include "debug.h"
@@ -16,11 +18,19 @@
 
 VM vm;
 
+static void defineNative(const char *name, NativeFn fun);
+
+static Value clockNative(int argCount, Value *args) {
+  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
+
 void initVM() {
   initStack(&vm.stack);
   vm.objects = nullptr;
   initTable(&vm.globals);
   initTable(&vm.strings);
+
+  defineNative("clock", clockNative);
 }
 
 void freeVM() {
@@ -30,7 +40,10 @@ void freeVM() {
   freeObjects();
 }
 
-static void resetStack() { freeStack(&vm.stack); }
+static void resetStack() {
+  freeStack(&vm.stack);
+  vm.frameCount = 0;
+}
 
 static void runtimeError(const char *format, ...) {
   va_list args;
@@ -39,15 +52,73 @@ static void runtimeError(const char *format, ...) {
   va_end(args);
   fputs("\n", stderr);
 
-  size_t instruction = vm.ip - vm.chunk->code - 1;
-  int line = vm.chunk->lines.items[instruction].line;
-  fprintf(stderr, "[line %d] in script\n", line);
+  for (int i = vm.frameCount - 1; i >= 0; i--) {
+    CallFrame *frame = &vm.frames[i];
+    ObjFunction *fun = frame->function;
+    size_t instruction = frame->ip - fun->chunk.code - 1;
+    fprintf(stderr, "[line %d] in ",
+            getInstructionLine(&fun->chunk.lines, instruction));
+    if (fun->name == nullptr) {
+      fprintf(stderr, "script\n");
+    } else {
+      fprintf(stderr, "%.*s()\n", fun->name->length, fun->name->content);
+    }
+  }
+
   resetStack();
 }
 
 static void push(Value value) { pushOnStack(&vm.stack, value); }
-static Value peek(int distance) { return peekFromStack(&vm.stack, distance); }
 static Value pop() { return popFromStack(&vm.stack); }
+static Value peek(int distance) { return peekFromStack(&vm.stack, distance); }
+
+static void defineNative(const char *name, NativeFn fun) {
+  push(OBJ_VAL(newOwnedString(name, strlen(name))));
+  push(OBJ_VAL(newNative(fun)));
+  tableSet(&vm.globals, AS_STRING(peek(1)), peek(0));
+  pop();
+  pop();
+}
+
+static bool call(ObjFunction *fun, int argCount) {
+  if (argCount != fun->arity) {
+    runtimeError("Expected %d arguments but got %d for <fn %.*s>", fun->arity,
+                 argCount, fun->name->length, getCString(fun->name));
+    return false;
+  }
+
+  if (vm.frameCount == FRAMES_MAX) {
+    runtimeError("Stack overflow.");
+    return false;
+  }
+
+  CallFrame *frame = &vm.frames[vm.frameCount++];
+  frame->function = fun;
+  frame->ip = fun->chunk.code;
+  frame->stackIndex = vm.stack.count - argCount - 1;
+
+  return true;
+}
+
+static bool callValue(Value callee, int argCount) {
+  if (IS_OBJ(callee)) {
+    switch (OBJ_TYPE(callee)) {
+    case OBJ_FUNCTION:
+      return call(AS_FUNCTION(callee), argCount);
+    case OBJ_NATIVE:
+      NativeFn native = AS_NATIVE(callee);
+      Value result = native(argCount, vm.stack.top - argCount);
+      stackDrop(&vm.stack, argCount + 1);
+      push(result);
+      return true;
+    default:
+      break;
+    }
+  }
+
+  runtimeError("Can only call function and classes.");
+  return false;
+}
 
 static bool isFalsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
@@ -64,10 +135,14 @@ static void concatenate() {
 }
 
 static InterpretResult run() {
-#define READ_BYTE() (*vm.ip++)
-#define READ_SHORT() (vm.ip += 2, (uint16_t)((vm.ip[-2] << 8) | vm.ip[-1]))
-#define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
-#define READ_LONG_CONSTANT() vm.chunk->constants.values[READ_SHORT()]
+  CallFrame *frame = &vm.frames[vm.frameCount - 1];
+
+#define READ_BYTE() (*frame->ip++)
+#define READ_SHORT()                                                           \
+  (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+#define READ_CONSTANT() (frame->function->chunk.constants.values[READ_BYTE()])
+#define READ_LONG_CONSTANT()                                                   \
+  frame->function->chunk.constants.values[READ_SHORT()]
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define READ_STRING_LONG() AS_STRING(READ_LONG_CONSTANT())
 #define BINARY_OP(valueType, op)                                               \
@@ -83,14 +158,17 @@ static InterpretResult run() {
 
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-    printf("          ");
-    for (Value *slot = vm.stack.values; slot < vm.stack.top; slot++) {
+    printf("[%d]", vm.stack.count);
+    printf("       ");
+    // for (Value *slot = vm.stack.values; slot < vm.stack.top; slot++) {
+    for (int i = 0; i < vm.stack.count; i++) {
       printf("[ ");
-      printValue(*slot);
+      printValue(vm.stack.values[i]);
       printf(" ]");
     }
     printf("\n");
-    disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
+    disassembleInstruction(&frame->function->chunk,
+                           (int)(frame->ip - frame->function->chunk.code));
 #endif
 
     uint8_t instruction;
@@ -124,11 +202,11 @@ static InterpretResult run() {
       break;
     case OP_GET_LOCAL:
       uint8_t slot_get = READ_BYTE();
-      push(*(vm.stack.values + slot_get));
+      push(stackGet(&vm.stack, frame->stackIndex + slot_get));
       break;
     case OP_SET_LOCAL:
       uint8_t slot_set = READ_BYTE();
-      *(vm.stack.values + slot_set) = peek(0);
+      stackSet(&vm.stack, frame->stackIndex + slot_set, peek(0));
       break;
     case OP_GET_GLOBAL:
     case OP_GET_GLOBAL_LONG:
@@ -203,19 +281,37 @@ static InterpretResult run() {
       break;
     case OP_JUMP:
       uint16_t offset_j = READ_SHORT();
-      vm.ip += offset_j;
+      frame->ip += offset_j;
       break;
     case OP_JUMP_IF_FALSE:
       uint16_t offset_jif = READ_SHORT();
       if (isFalsey(peek(0)))
-        vm.ip += offset_jif;
+        frame->ip += offset_jif;
       break;
     case OP_LOOP:
       uint16_t offset_loop = READ_SHORT();
-      vm.ip -= offset_loop;
+      frame->ip -= offset_loop;
+      break;
+    case OP_CALL:
+      int argCount = READ_BYTE();
+      if (!callValue(peek(argCount), argCount)) {
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      frame = &vm.frames[vm.frameCount - 1];
       break;
     case OP_RETURN:
-      return INTERPRET_OK;
+      Value result = pop();
+      vm.frameCount--;
+
+      if (vm.frameCount == 0) {
+        pop();
+        return INTERPRET_OK;
+      }
+
+      stackReset(&vm.stack, frame->stackIndex);
+      push(result);
+      frame = &vm.frames[vm.frameCount - 1];
+      break;
 
 #undef BINARY_OP
 #undef READ_STRING_LONG
@@ -230,20 +326,14 @@ static InterpretResult run() {
 }
 
 InterpretResult interpret(const char *source) {
-  Chunk chunk;
-  initChunk(&chunk);
+  ObjFunction *fun = compile(source);
 
-  if (!compile(source, &chunk)) {
-    freeChunk(&chunk);
+  if (fun == nullptr) {
     return INTERPRET_COMPILE_ERROR;
   }
 
-  vm.chunk = &chunk;
-  vm.ip = vm.chunk->code;
+  push(OBJ_VAL(fun));
+  call(fun, 0);
 
-  InterpretResult result = run();
-
-  freeChunk(&chunk);
-
-  return result;
+  return run();
 }

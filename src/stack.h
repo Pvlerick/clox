@@ -16,5 +16,9 @@ void freeStack(Stack* stack);
 void pushOnStack(Stack* stack, Value value);
 Value popFromStack(Stack* stack);
 Value peekFromStack(Stack* stack, int distance);
+Value stackGet(Stack *stack, int index);
+void stackSet(Stack *stack, int index, Value value);
+void stackReset(Stack *stack, int index);
+void stackDrop(Stack *stack, int count);
 
 #endif

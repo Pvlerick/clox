@@ -1,4 +1,8 @@
-for (var a = 0; a < 10; a = a + 1)
-  if (a > 5) continue;
-  print a;
+fun f(a) {
+  if (a > 0) {
+    print a;
+    f(a - 1);
+  }
 }
+
+f(6);

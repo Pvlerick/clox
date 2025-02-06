@@ -1,23 +1,45 @@
 #ifndef clox_object_h
 #define clox_object_h
 
+#include "chunk.h"
 #include "common.h"
 #include "value.h"
 #include <stdint.h>
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
-#define IS_STRING(value) isObjType(value, OBJ_STRING)
+#define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
+#define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
 
+#define IS_NATIVE(value) isObjType(value, OBJ_NATIVE)
+#define AS_NATIVE(value) (((ObjNative*)AS_OBJ(value))->function)
+
+#define IS_STRING(value) isObjType(value, OBJ_STRING)
 #define AS_STRING(value) ((ObjString*)AS_OBJ(value))
 
 typedef enum {
+  OBJ_FUNCTION,
+  OBJ_NATIVE,
   OBJ_STRING,
 } ObjType;
 
 struct Obj {
   ObjType type;
   struct Obj *next;
+};
+
+typedef Value (*NativeFn)(int argCount, Value* args);
+
+typedef struct {
+  Obj obj;
+  NativeFn function;
+} ObjNative;
+
+struct ObjFunction {
+  Obj obj;
+  int arity;
+  Chunk chunk;
+  ObjString *name;
 };
 
 // Note: in the case of a borrowed string, the FAM is reinterpreted as a char*
@@ -35,6 +57,9 @@ typedef struct StringRef {
   const char *content;
 } StringRef;
 
+ObjString *newOwnedString(const char *start, size_t length);
+ObjFunction *newFunction();
+ObjNative *newNative(NativeFn fun);
 ObjString *allocateString(int length, int count, ...);
 StringRef toStringRef(ObjString *string);
 ObjString *borrowString(const char* chars, int length);
