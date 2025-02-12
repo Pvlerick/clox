@@ -19,6 +19,7 @@
 
 VM vm;
 
+static void runtimeError(const char *format, ...);
 static void defineNative(const char *name, NativeFn fun, int arity);
 
 static Value clockNative(int argCount, Value *args) {
@@ -26,6 +27,10 @@ static Value clockNative(int argCount, Value *args) {
 }
 
 static Value envNative(int argCount, Value *args) {
+  if (!IS_STRING(*args)) {
+    runtimeError("argument to 'env' native function must be a string.");
+  }
+
   const char *name = copyString(AS_STRING(*args));
   const char *var = getenv(name);
   free((void *)name);
