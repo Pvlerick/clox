@@ -1,0 +1,12 @@
+fun f() {
+  for (var a = 0; a < 100000; a = a + 1) {
+    var b = a + 5;
+    for (var c = 0; c < 1000; c = c + 1) {
+      var d = a + b + c;
+    }
+  }
+}
+
+var start = clock();
+f();
+print clock() - start;
