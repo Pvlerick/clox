@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -24,6 +25,18 @@ static Value clockNative(int argCount, Value *args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 
+static Value envNative(int argCount, Value *args) {
+  const char *name = copyString(AS_STRING(*args));
+  const char *var = getenv(name);
+  free((void *)name);
+
+  if (var != nullptr) {
+    return OBJ_VAL(newOwnedString(var, strlen(var)));
+  }
+
+  return NIL_VAL;
+}
+
 void initVM() {
   initStack(&vm.stack);
   vm.objects = nullptr;
@@ -31,6 +44,7 @@ void initVM() {
   initTable(&vm.strings);
 
   defineNative("clock", clockNative);
+  defineNative("env", envNative);
 }
 
 void freeVM() {

@@ -248,13 +248,13 @@ static ObjFunction *endCompiler() {
 
 #ifdef DEBUG_PRINT_CODE
   if (!parser.hadError) {
-    char *functionName = "<script>";
     if (function->name != nullptr) {
-      functionName = (char *)malloc(function->name->length + 1);
-      memcpy(functionName, function->name->content, function->name->length);
-      functionName[function->name->length] = 0;
+      const char *functionName = copyString(function->name);
+      disassembleChunk(currentChunk(), functionName);
+      free((void *)functionName);
+    } else {
+      disassembleChunk(currentChunk(), "<script>");
     }
-    disassembleChunk(currentChunk(), functionName);
   }
 #endif
 

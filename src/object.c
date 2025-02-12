@@ -5,6 +5,7 @@
 #include "vm.h"
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define ALLOCATE_OBJ(type, objType)                                            \
@@ -125,6 +126,13 @@ ObjString *borrowString(const char *chars, int length) {
 
 const char *getCString(ObjString *string) {
   return string->isBorrowed ? *(char **)string->content : string->content;
+}
+
+const char *copyString(ObjString *string) {
+  char *loc = (char *)malloc(string->length + 1);
+  memcpy(loc, getCString(string), string->length);
+  loc[string->length] = '\0';
+  return loc;
 }
 
 void printObject(Value value) {

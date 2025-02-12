@@ -65,6 +65,7 @@ StringRef toStringRef(ObjString *string);
 ObjString *borrowString(const char* chars, int length);
 uint32_t hashString(const char *key, int length);
 const char *getCString(ObjString *string);
+const char *copyString(ObjString *string);
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {
