@@ -41,9 +41,10 @@ ObjFunction *newFunction() {
   return fun;
 }
 
-ObjNative *newNative(NativeFn fun) {
+ObjNative *newNative(NativeFn fun, int arity) {
   ObjNative *native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
   native->function = fun;
+  native->arity = arity;
   return native;
 }
 

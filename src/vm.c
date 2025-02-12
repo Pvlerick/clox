@@ -19,7 +19,7 @@
 
 VM vm;
 
-static void defineNative(const char *name, NativeFn fun);
+static void defineNative(const char *name, NativeFn fun, int arity);
 
 static Value clockNative(int argCount, Value *args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
@@ -43,8 +43,8 @@ void initVM() {
   initTable(&vm.globals);
   initTable(&vm.strings);
 
-  defineNative("clock", clockNative);
-  defineNative("env", envNative);
+  defineNative("clock", clockNative, 0);
+  defineNative("env", envNative, 1);
 }
 
 void freeVM() {
@@ -86,9 +86,9 @@ static void push(Value value) { pushOnStack(&vm.stack, value); }
 static Value pop() { return popFromStack(&vm.stack); }
 static Value peek(int distance) { return peekFromStack(&vm.stack, distance); }
 
-static void defineNative(const char *name, NativeFn fun) {
+static void defineNative(const char *name, NativeFn fun, int arity) {
   push(OBJ_VAL(newOwnedString(name, strlen(name))));
-  push(OBJ_VAL(newNative(fun)));
+  push(OBJ_VAL(newNative(fun, arity)));
   tableSet(&vm.globals, AS_STRING(peek(1)), peek(0));
   pop();
   pop();
@@ -120,8 +120,13 @@ static bool callValue(Value callee, int argCount) {
     case OBJ_FUNCTION:
       return call(AS_FUNCTION(callee), argCount);
     case OBJ_NATIVE:
-      NativeFn native = AS_NATIVE(callee);
-      Value result = native(argCount, vm.stack.top - argCount);
+      ObjNative *native = AS_NATIVE(callee);
+      if (native->arity != argCount) {
+        runtimeError("Expected %d arguments but got %d for native function",
+                     native->arity, argCount);
+        return false;
+      }
+      Value result = native->function(argCount, vm.stack.top - argCount);
       stackDrop(&vm.stack, argCount + 1);
       push(result);
       return true;

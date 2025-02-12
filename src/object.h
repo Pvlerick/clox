@@ -12,7 +12,7 @@
 #define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
 
 #define IS_NATIVE(value) isObjType(value, OBJ_NATIVE)
-#define AS_NATIVE(value) (((ObjNative*)AS_OBJ(value))->function)
+#define AS_NATIVE(value) (((ObjNative*)AS_OBJ(value)))
 
 #define IS_STRING(value) isObjType(value, OBJ_STRING)
 #define AS_STRING(value) ((ObjString*)AS_OBJ(value))
@@ -32,6 +32,7 @@ typedef Value (*NativeFn)(int argCount, Value* args);
 
 typedef struct {
   Obj obj;
+  int arity;
   NativeFn function;
 } ObjNative;
 
@@ -59,7 +60,7 @@ typedef struct StringRef {
 
 ObjString *newOwnedString(const char *start, size_t length);
 ObjFunction *newFunction();
-ObjNative *newNative(NativeFn fun);
+ObjNative *newNative(NativeFn fun, int arity);
 ObjString *allocateString(int length, int count, ...);
 StringRef toStringRef(ObjString *string);
 ObjString *borrowString(const char* chars, int length);
