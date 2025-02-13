@@ -3,13 +3,14 @@
 
 #include "chunk.h"
 #include "debug.h"
+#include "object.h"
 #include "stack.h"
 #include "table.h"
 
 #define FRAMES_MAX 64
 
 typedef struct {
-  ObjFunction *function;
+  ObjClosure *closure;
   uint8_t *ip;
   int stackIndex;
 } CallFrame;
@@ -20,6 +21,7 @@ typedef struct {
   Stack stack;
   Table globals;
   Table strings;
+  ObjUpvalue *openUpvalues;
   Obj *objects;
 } VM;
 

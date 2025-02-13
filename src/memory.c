@@ -19,6 +19,11 @@ void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
 
 static void freeObject(Obj *obj) {
   switch (obj->type) {
+  case OBJ_CLOSURE:
+    ObjClosure *closure = (ObjClosure *)obj;
+    FREE_ARRAY(ObjUpvalue *, closure->upvalues, closure->upvalueCount);
+    FREE(ObjClosure, obj);
+    break;
   case OBJ_FUNCTION:
     ObjFunction *fun = (ObjFunction *)obj;
     freeChunk(&fun->chunk);
@@ -28,7 +33,11 @@ static void freeObject(Obj *obj) {
     FREE(ObjNative, obj);
     break;
   case OBJ_STRING:
+    // TODO Check if that's correct - borrowed and owned
     FREE(ObjString, obj);
+    break;
+  case OBJ_UPVALUE:
+    FREE(ObjUpvalue, obj);
     break;
   }
 }

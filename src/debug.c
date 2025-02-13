@@ -1,3 +1,4 @@
+#include "object.h"
 #include "value.h"
 #include <stdarg.h>
 #include <stdint.h>
@@ -85,6 +86,36 @@ static int longConstantInstruction(const char *name, Chunk *chunk, int offset) {
   return offset + 3;
 }
 
+static int closureParameters(Chunk *chunk, int offset, int codeIndex) {
+  ObjFunction *fun = AS_FUNCTION(chunk->constants.values[codeIndex]);
+  for (int i = 0; i < fun->upvalueCount; i++) {
+    int isLocal = chunk->code[offset++];
+    int index = chunk->code[offset++];
+    debug("%04d      |                     %s %d\n", offset - 2,
+          isLocal ? "local" : "upvalue", index);
+  }
+
+  return offset;
+}
+
+static int closureInstruction(const char *name, Chunk *chunk, int offset) {
+  uint8_t codeIndex = chunk->code[offset + 1];
+  debug("%-16s %4d ", name, codeIndex);
+  printValue(chunk->constants.values[codeIndex]);
+  debug("\n");
+
+  return closureParameters(chunk, offset + 2, codeIndex);
+}
+
+static int longClosureInstruction(const char *name, Chunk *chunk, int offset) {
+  uint16_t *codeIndex = (uint16_t *)&chunk->code[offset + 1];
+  debug("%-16s %4d ", name, *codeIndex);
+  printValue(chunk->constants.values[*codeIndex]);
+  debug("\n");
+
+  return closureParameters(chunk, offset + 3, *codeIndex);
+}
+
 int disassembleInstruction(Chunk *chunk, int offset) {
   debug("%04d ", offset);
 
@@ -126,6 +157,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return constantInstruction("OP_SET_GLOBAL", chunk, offset);
   case OP_SET_GLOBAL_LONG:
     return longConstantInstruction("OP_SET_GLOBAL_LONG", chunk, offset);
+  case OP_GET_UPVALUE:
+    return byteInstruction("OP_GET_UPVALUE", chunk, offset);
+  case OP_SET_UPVALUE:
+    return byteInstruction("OP_SET_UPVALUE", chunk, offset);
   case OP_EQUAL:
     return simpleInstruction("OP_EQUAL", offset);
   case OP_CMP:
@@ -156,6 +191,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return jumpInstruction("OP_LOOP", -1, chunk, offset);
   case OP_CALL:
     return byteInstruction("OP_CALL", chunk, offset);
+  case OP_CLOSURE:
+    return closureInstruction("OP_CLOSURE", chunk, offset);
+  case OP_CLOSURE_LONG:
+    return longClosureInstruction("OP_CLOSURE_LONG", chunk, offset);
+  case OP_CLOSE_UPVALUE:
+    return simpleInstruction("OP_CLOSE_UPVALUE", offset);
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
   default:

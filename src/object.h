@@ -8,6 +8,9 @@
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
+#define IS_CLOSURE(value) isObjType(value, OBJ_CLOSURE)
+#define AS_CLOSURE(value) ((ObjClosure*)AS_OBJ(value))
+
 #define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
 #define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
 
@@ -18,9 +21,11 @@
 #define AS_STRING(value) ((ObjString*)AS_OBJ(value))
 
 typedef enum {
+  OBJ_CLOSURE,
   OBJ_FUNCTION,
   OBJ_NATIVE,
   OBJ_STRING,
+  OBJ_UPVALUE,
 } ObjType;
 
 struct Obj {
@@ -39,6 +44,7 @@ typedef struct {
 struct ObjFunction {
   Obj obj;
   int arity;
+  int upvalueCount;
   Chunk chunk;
   ObjString *name;
 };
@@ -53,12 +59,27 @@ struct ObjString {
   char content[];
 };
 
+typedef struct ObjUpvalue {
+  Obj obj;
+  int stackIndex;
+  Value closed;
+  struct ObjUpvalue *next;
+} ObjUpvalue;
+
+typedef struct {
+  Obj obj;
+  ObjFunction *function;
+  ObjUpvalue **upvalues;
+  int upvalueCount;
+} ObjClosure;
+
 typedef struct StringRef {
   int length;
   const char *content;
 } StringRef;
 
 ObjString *newOwnedString(const char *start, size_t length);
+ObjClosure *newClosure(ObjFunction *fun);
 ObjFunction *newFunction();
 ObjNative *newNative(NativeFn fun, int arity);
 ObjString *allocateString(int length, int count, ...);
@@ -67,6 +88,7 @@ ObjString *borrowString(const char* chars, int length);
 uint32_t hashString(const char *key, int length);
 const char *getCString(ObjString *string);
 const char *copyString(ObjString *string);
+ObjUpvalue *newUpvalue(int stackIndex);
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {
