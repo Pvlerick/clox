@@ -208,6 +208,22 @@ static void emitConstant(Value value) {
   }
 }
 
+static void emitClosure(Value value) {
+  ConstRef ref = makeConstant(value);
+  switch (ref.type) {
+  case CONST:
+    emitByte(OP_CLOSURE);
+    emitByte(ref.as.constant);
+    break;
+  case CONST_LONG:
+    emitByte(OP_CLOSURE_LONG);
+    uint8_t *addr = (uint8_t *)&ref.as.longConstant;
+    emitByte(*(addr + 1));
+    emitByte(*addr);
+    break;
+  }
+}
+
 static void patchJump(int offset) {
   // -2 to adjust for the bytecode for the jump offset itself.
   int jump = currentChunk()->count - offset - 2;
@@ -251,6 +267,7 @@ static ObjFunction *endCompiler() {
     if (function->name != nullptr) {
       const char *functionName = copyString(function->name);
       disassembleChunk(currentChunk(), functionName);
+      // TODO Use the attribute gcc extension if possible
       free((void *)functionName);
     } else {
       disassembleChunk(currentChunk(), "<script>");
@@ -449,7 +466,7 @@ static void function(FunctionType type) {
   block();
 
   ObjFunction *fun = endCompiler();
-  emitConstant(OBJ_VAL(fun));
+  emitClosure(OBJ_VAL(fun));
 }
 
 static void funDeclaration() {

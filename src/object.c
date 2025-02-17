@@ -21,6 +21,12 @@ static Obj *allocateObject(size_t size, ObjType type) {
   return obj;
 }
 
+ObjClosure *newClosure(ObjFunction *fun) {
+  ObjClosure *closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
+  closure->function = fun;
+  return closure;
+}
+
 ObjString *newOwnedString(const char *start, size_t length) {
   ObjString *string =
       (ObjString *)allocateObject(sizeof(ObjString) + length, OBJ_STRING);
@@ -138,6 +144,9 @@ const char *copyString(ObjString *string) {
 
 void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
+  case OBJ_CLOSURE:
+    printFunction(AS_CLOSURE(value)->function);
+    break;
   case OBJ_FUNCTION:
     printFunction(AS_FUNCTION(value));
     break;

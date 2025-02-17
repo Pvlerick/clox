@@ -85,6 +85,22 @@ static int longConstantInstruction(const char *name, Chunk *chunk, int offset) {
   return offset + 3;
 }
 
+static int closureInstruction(const char *name, Chunk *chunk, int offset) {
+  uint8_t codeIndex = chunk->code[offset + 1];
+  debug("%-16s %4d ", name, codeIndex);
+  printValue(chunk->constants.values[codeIndex]);
+  debug("\n");
+  return offset + 2;
+}
+
+static int longClosureInstruction(const char *name, Chunk *chunk, int offset) {
+  uint16_t *codeIndex = (uint16_t *)&chunk->code[offset + 1];
+  debug("%-16s %4d ", name, *codeIndex);
+  printValue(chunk->constants.values[*codeIndex]);
+  debug("\n");
+  return offset + 3;
+}
+
 int disassembleInstruction(Chunk *chunk, int offset) {
   debug("%04d ", offset);
 
@@ -156,6 +172,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return jumpInstruction("OP_LOOP", -1, chunk, offset);
   case OP_CALL:
     return byteInstruction("OP_CALL", chunk, offset);
+  case OP_CLOSURE:
+    return closureInstruction("OP_CLOSURE", chunk, offset);
+  case OP_CLOSURE_LONG:
+    return longClosureInstruction("OP_CLOSURE_LONG", chunk, offset);
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
   default:

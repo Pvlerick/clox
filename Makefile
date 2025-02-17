@@ -1,4 +1,4 @@
-.PHONY: build run mmm test-mmm
+.PHONY: build build-debug build-trace build-nommm clean run debug trace test-mmm run-nommm
 
 objects = src/main.c src/chunk.c src/debug.c src/line.c src/memory.c src/value.c src/vm.c src/stack.c src/compiler.c src/scanner.c src/object.c src/table.c src/mmm.c
 mmm_linker_options = -Xlinker --wrap -Xlinker malloc -Xlinker --wrap -Xlinker free -Xlinker --wrap -Xlinker realloc
@@ -21,17 +21,17 @@ clean:
 run:
 	$(MAKE) clean
 	$(MAKE) build
-	./clox
+	./clox $(FILE)
 
 debug:
 	$(MAKE) clean
 	$(MAKE) build-debug
-	./clox
+	./clox $(FILE)
 
 trace:
 	$(MAKE) clean
 	$(MAKE) build-trace
-	./clox
+	./clox $(FILE)
 
 test-mmm:
 	$(MAKE) clean
@@ -41,4 +41,4 @@ test-mmm:
 run-nommm:
 	$(MAKE) clean
 	$(MAKE) build-nommm
-	./clox
+	./clox $(FILE)

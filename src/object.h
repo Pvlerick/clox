@@ -8,6 +8,9 @@
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
+#define IS_CLOSURE(value) isObjType(value, OBJ_CLOSURE)
+#define AS_CLOSURE(value) ((ObjClosure*)AS_OBJ(value))
+
 #define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
 #define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
 
@@ -18,6 +21,7 @@
 #define AS_STRING(value) ((ObjString*)AS_OBJ(value))
 
 typedef enum {
+  OBJ_CLOSURE,
   OBJ_FUNCTION,
   OBJ_NATIVE,
   OBJ_STRING,
@@ -53,12 +57,18 @@ struct ObjString {
   char content[];
 };
 
+typedef struct {
+  Obj obj;
+  ObjFunction *function;
+} ObjClosure;
+
 typedef struct StringRef {
   int length;
   const char *content;
 } StringRef;
 
 ObjString *newOwnedString(const char *start, size_t length);
+ObjClosure *newClosure(ObjFunction *fun);
 ObjFunction *newFunction();
 ObjNative *newNative(NativeFn fun, int arity);
 ObjString *allocateString(int length, int count, ...);
