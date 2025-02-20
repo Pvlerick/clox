@@ -1,3 +1,4 @@
+#include "object.h"
 #include "value.h"
 #include <stdarg.h>
 #include <stdint.h>
@@ -85,12 +86,25 @@ static int longConstantInstruction(const char *name, Chunk *chunk, int offset) {
   return offset + 3;
 }
 
+static int closureParameters(Chunk *chunk, int offset, int codeIndex) {
+  ObjFunction *fun = AS_FUNCTION(chunk->constants.values[codeIndex]);
+  for (int i = 0; i < fun->upvalueCount; i++) {
+    int isLocal = chunk->code[offset++];
+    int index = chunk->code[offset++];
+    debug("%04d      |                     %s %d\n", offset - 2,
+          isLocal ? "local" : "upvalue", index);
+  }
+
+  return offset;
+}
+
 static int closureInstruction(const char *name, Chunk *chunk, int offset) {
   uint8_t codeIndex = chunk->code[offset + 1];
   debug("%-16s %4d ", name, codeIndex);
   printValue(chunk->constants.values[codeIndex]);
   debug("\n");
-  return offset + 2;
+
+  return closureParameters(chunk, offset + 2, codeIndex);
 }
 
 static int longClosureInstruction(const char *name, Chunk *chunk, int offset) {
@@ -98,7 +112,8 @@ static int longClosureInstruction(const char *name, Chunk *chunk, int offset) {
   debug("%-16s %4d ", name, *codeIndex);
   printValue(chunk->constants.values[*codeIndex]);
   debug("\n");
-  return offset + 3;
+
+  return closureParameters(chunk, offset + 3, *codeIndex);
 }
 
 int disassembleInstruction(Chunk *chunk, int offset) {
@@ -142,6 +157,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return constantInstruction("OP_SET_GLOBAL", chunk, offset);
   case OP_SET_GLOBAL_LONG:
     return longConstantInstruction("OP_SET_GLOBAL_LONG", chunk, offset);
+  case OP_GET_UPVALUE:
+    return byteInstruction("OP_GET_UPVALUE", chunk, offset);
+  case OP_SET_UPVALUE:
+    return byteInstruction("OP_SET_UPVALUE", chunk, offset);
   case OP_EQUAL:
     return simpleInstruction("OP_EQUAL", offset);
   case OP_CMP:

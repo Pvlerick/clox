@@ -42,6 +42,7 @@ ObjString *newOwnedString(const char *start, size_t length) {
 ObjFunction *newFunction() {
   ObjFunction *fun = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
   fun->arity = 0;
+  fun->upvalueCount = 0;
   fun->name = NULL;
   initChunk(&fun->chunk);
   return fun;

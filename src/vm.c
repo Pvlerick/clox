@@ -270,6 +270,10 @@ static InterpretResult run() {
         return INTERPRET_RUNTIME_ERROR;
       }
       break;
+    case OP_GET_UPVALUE:
+      break;
+    case OP_SET_UPVALUE:
+      break;
     case OP_GREATER:
       BINARY_OP(BOOL_VAL, >);
       break;

@@ -1,0 +1,14 @@
+fun f() {
+  var a = 42;
+  fun g() {
+    var b = "foo";
+    fun h() {
+      print a;
+      print b;
+    }
+    h();
+  }
+  g();
+}
+
+f();

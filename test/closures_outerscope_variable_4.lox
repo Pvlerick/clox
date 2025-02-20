@@ -1,0 +1,10 @@
+fun f() {
+  let a = 42;
+  fun g() {
+    a = 43;
+    print a;
+  }
+  g();
+}
+
+f();
