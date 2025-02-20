@@ -22,8 +22,15 @@ static Obj *allocateObject(size_t size, ObjType type) {
 }
 
 ObjClosure *newClosure(ObjFunction *fun) {
+  ObjUpvalue **upvalues = ALLOCATE(ObjUpvalue *, fun->upvalueCount);
+  for (int i = 0; i < fun->upvalueCount; i++) {
+    upvalues[i] = nullptr;
+  }
+
   ObjClosure *closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
   closure->function = fun;
+  closure->upvalues = upvalues;
+  closure->upvalueCount = fun->upvalueCount;
   return closure;
 }
 
@@ -143,6 +150,12 @@ const char *copyString(ObjString *string) {
   return loc;
 }
 
+ObjUpvalue *newUpvalue(Value *slot) {
+  ObjUpvalue *upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
+  upvalue->location = slot;
+  return upvalue;
+}
+
 void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
   case OBJ_CLOSURE:
@@ -157,6 +170,9 @@ void printObject(Value value) {
   case OBJ_STRING:
     ObjString *string = AS_STRING(value);
     printf("%.*s", string->length, getCString(string));
+    break;
+  case OBJ_UPVALUE:
+    printf("upvalue");
     break;
   }
 }

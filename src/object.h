@@ -25,6 +25,7 @@ typedef enum {
   OBJ_FUNCTION,
   OBJ_NATIVE,
   OBJ_STRING,
+  OBJ_UPVALUE,
 } ObjType;
 
 struct Obj {
@@ -58,9 +59,16 @@ struct ObjString {
   char content[];
 };
 
+typedef struct ObjUpvalue {
+  Obj obj;
+  Value *location;
+} ObjUpvalue;
+
 typedef struct {
   Obj obj;
   ObjFunction *function;
+  ObjUpvalue **upvalues;
+  int upvalueCount;
 } ObjClosure;
 
 typedef struct StringRef {
@@ -78,6 +86,7 @@ ObjString *borrowString(const char* chars, int length);
 uint32_t hashString(const char *key, int length);
 const char *getCString(ObjString *string);
 const char *copyString(ObjString *string);
+ObjUpvalue *newUpvalue(Value *slot);
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {

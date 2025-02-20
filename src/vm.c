@@ -147,6 +147,11 @@ static bool callValue(Value callee, int argCount) {
   return false;
 }
 
+static ObjUpvalue *captureUpvalue(Value *local) {
+  ObjUpvalue *createdUpvalue = newUpvalue(local);
+  return createdUpvalue;
+}
+
 static bool isFalsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
@@ -271,8 +276,12 @@ static InterpretResult run() {
       }
       break;
     case OP_GET_UPVALUE:
+      uint8_t get_upvalue_slot = READ_BYTE();
+      push(*frame->closure->upvalues[get_upvalue_slot]->location);
       break;
     case OP_SET_UPVALUE:
+      uint8_t set_upvalue_slot = READ_BYTE();
+      *frame->closure->upvalues[set_upvalue_slot]->location = peek(0);
       break;
     case OP_GREATER:
       BINARY_OP(BOOL_VAL, >);
@@ -343,6 +352,16 @@ static InterpretResult run() {
       ObjFunction *fun = AS_FUNCTION(READ_CONSTANT());
       ObjClosure *closure = newClosure(fun);
       push(OBJ_VAL(closure));
+      for (int i = 0; i < closure->upvalueCount; i++) {
+        uint8_t isLocal = READ_BYTE();
+        uint8_t index = READ_BYTE();
+        if (isLocal) {
+          closure->upvalues[i] =
+              captureUpvalue(&vm.stack.values[frame->stackIndex + index]);
+        } else {
+          closure->upvalues[i] = frame->closure->upvalues[index];
+        }
+      }
       break;
     case OP_CLOSURE_LONG:
       ObjFunction *fun_long = AS_FUNCTION(READ_LONG_CONSTANT());
