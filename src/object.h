@@ -61,7 +61,9 @@ struct ObjString {
 
 typedef struct ObjUpvalue {
   Obj obj;
-  Value *location;
+  int stackIndex;
+  Value closed;
+  struct ObjUpvalue *next;
 } ObjUpvalue;
 
 typedef struct {
@@ -86,7 +88,7 @@ ObjString *borrowString(const char* chars, int length);
 uint32_t hashString(const char *key, int length);
 const char *getCString(ObjString *string);
 const char *copyString(ObjString *string);
-ObjUpvalue *newUpvalue(Value *slot);
+ObjUpvalue *newUpvalue(int stackIndex);
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {

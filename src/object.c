@@ -150,9 +150,11 @@ const char *copyString(ObjString *string) {
   return loc;
 }
 
-ObjUpvalue *newUpvalue(Value *slot) {
+ObjUpvalue *newUpvalue(int stackIndex) {
   ObjUpvalue *upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
-  upvalue->location = slot;
+  upvalue->closed = NIL_VAL;
+  upvalue->stackIndex = stackIndex;
+  upvalue->next = nullptr;
   return upvalue;
 }
 

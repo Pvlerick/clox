@@ -44,11 +44,13 @@ typedef struct {
 typedef struct {
   Token name;
   int depth;
+  bool captured;
   bool readonly;
 } Local;
 
 typedef struct {
   uint8_t index;
+  bool readonly;
   bool isLocal;
 } Upvalue;
 
@@ -259,6 +261,8 @@ static void initCompiler(Compiler *compiler, FunctionType type) {
 
   Local local;
   local.depth = 0;
+  local.captured = false;
+  local.readonly = true;
   local.name.start = "";
   local.name.length = 0;
   writeLocalArray(&current->locals, local);
@@ -299,7 +303,11 @@ static void endScope() {
   while (current->locals.count > 0 &&
          current->locals.items[current->locals.count - 1].depth >
              current->scopeDepth) {
-    emitByte(OP_POP);
+    if (current->locals.items[current->locals.count - 1].captured) {
+      emitByte(OP_CLOSE_UPVALUE);
+    } else {
+      emitByte(OP_POP);
+    }
     current->locals.count--;
   }
 }
@@ -341,7 +349,8 @@ static int resolveLocal(Compiler *compiler, Token *name) {
   return -1;
 }
 
-static int addUpvalue(Compiler *compiler, uint8_t index, bool isLocal) {
+static int addUpvalue(Compiler *compiler, uint8_t index, bool isLocal,
+                      bool readonly) {
   int upvalueCount = compiler->function->upvalueCount;
 
   for (int i = 0; i < upvalueCount; i++) {
@@ -357,6 +366,7 @@ static int addUpvalue(Compiler *compiler, uint8_t index, bool isLocal) {
 
   compiler->upvalues[upvalueCount].isLocal = isLocal;
   compiler->upvalues[upvalueCount].index = index;
+  compiler->upvalues[upvalueCount].readonly = readonly;
 
   return compiler->function->upvalueCount++;
 }
@@ -365,21 +375,25 @@ static int resolveUpvalue(Compiler *compiler, Token *name) {
   if (compiler->enclosing == nullptr)
     return -1;
 
-  int local = resolveLocal(compiler->enclosing, name);
-  if (local != -1) {
-    return addUpvalue(compiler, (uint8_t)local, true);
+  int localIndex = resolveLocal(compiler->enclosing, name);
+  if (localIndex != -1) {
+    compiler->enclosing->locals.items[localIndex].captured = true;
+    return addUpvalue(compiler, (uint8_t)localIndex, true,
+                      compiler->enclosing->locals.items[localIndex].readonly);
   }
 
-  int upvalue = resolveUpvalue(compiler->enclosing, name);
-  if (upvalue != -1) {
-    return addUpvalue(compiler, (uint8_t)upvalue, false);
+  int upvalueIndex = resolveUpvalue(compiler->enclosing, name);
+  if (upvalueIndex != -1) {
+    return addUpvalue(compiler, (uint8_t)upvalueIndex, false,
+                      compiler->enclosing->locals.items[localIndex].readonly);
   }
 
   return -1;
 }
 
 static void addLocal(Token name, bool readonly) {
-  Local local = {.name = name, .depth = -1, .readonly = readonly};
+  Local local = {
+      .name = name, .depth = -1, .captured = false, .readonly = readonly};
   writeLocalArray(&current->locals, local);
 }
 
@@ -871,7 +885,7 @@ static void string(bool canAssign) {
 static void localVariable(int index, bool canAssign) {
   if (canAssign && match(TOKEN_EQUAL)) {
     if (current->locals.items[index].readonly)
-      error("Invalid assignment target: readonly variable");
+      error("Invalid assignment target: readonly variable.");
     expression();
     emitBytes(OP_SET_LOCAL, index);
   } else {
@@ -880,8 +894,9 @@ static void localVariable(int index, bool canAssign) {
 }
 
 static void upvalueVariable(int index, bool canAssign) {
-  // TODO What about readonly variables?
   if (canAssign && match(TOKEN_EQUAL)) {
+    if (current->upvalues[index].readonly)
+      error("Invalid assignment target: readonly captured variable.");
     emitBytes(OP_SET_UPVALUE, index);
   } else {
     emitBytes(OP_GET_UPVALUE, index);
@@ -927,7 +942,7 @@ static void namedVariable(Token name, bool canAssign) {
 
   index = resolveUpvalue(current, &name);
   if (index != -1) {
-    upvalueVariable(index, canAssign);
+    upvalueVariable(index, current->upvalues[index].readonly);
     return;
   }
 
@@ -1026,6 +1041,10 @@ static void parsePrecedence(Precedence precedence) {
 static ParseRule *getRule(TokenType type) { return &rules[type]; }
 
 ObjFunction *compile(const char *source) {
+#ifdef DEBUG_PRINT_CODE
+  debug("## COMPILATION TRACE START ##\n");
+#endif
+
   initScanner(source);
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);
@@ -1040,6 +1059,10 @@ ObjFunction *compile(const char *source) {
   }
 
   ObjFunction *fun = endCompiler();
+
+#ifdef DEBUG_PRINT_CODE
+  debug("## COMPILATION TRACE END ##\n");
+#endif
 
   return parser.hadError ? nullptr : fun;
 }
