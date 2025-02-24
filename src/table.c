@@ -136,6 +136,14 @@ ObjString *tableFindString(Table *table, const char *chars, int length,
   }
 }
 
+void markTable(Table *table) {
+  for (int i = 0; i < table->capacity; i++) {
+    Entry *entry = &table->entries[i];
+    markObject((Obj *)entry->key);
+    markValue(entry->value);
+  }
+}
+
 void tableDump(Table *table) {
   printf("dumping table (count: %d, capacity: %d)\n", table->count,
          table->capacity);

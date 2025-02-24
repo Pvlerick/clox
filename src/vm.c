@@ -74,6 +74,11 @@ static Value randNative(int argCout, Value *args) {
 void initVM() {
   initStack(&vm.stack);
   vm.objects = nullptr;
+
+  vm.grayCount = 0;
+  vm.grayCapacity = 0;
+  vm.grayStack = nullptr;
+
   initTable(&vm.globals);
   initTable(&vm.strings);
 

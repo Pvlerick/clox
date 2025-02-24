@@ -1071,3 +1071,11 @@ ObjFunction *compile(const char *source) {
 
   return parser.hadError ? nullptr : fun;
 }
+
+void markCompilerRoots() {
+  Compiler *compiler = current;
+  while (compiler != nullptr) {
+    markObject((Obj *)compiler->function);
+    compiler = compiler->enclosing;
+  }
+}

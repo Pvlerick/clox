@@ -11,12 +11,32 @@
 #define ALLOCATE_OBJ(type, objType)                                            \
   (type *)allocateObject(sizeof(type), objType)
 
+static const char *getType(ObjType type) {
+  switch (type) {
+  case OBJ_FUNCTION:
+    return "function";
+  case OBJ_STRING:
+    return "string";
+  case OBJ_NATIVE:
+    return "native function";
+  case OBJ_CLOSURE:
+    return "closure";
+  case OBJ_UPVALUE:
+    return "upvalue";
+  }
+}
+
 static Obj *allocateObject(size_t size, ObjType type) {
   Obj *obj = (Obj *)reallocate(nullptr, 0, size);
   obj->type = type;
+  obj->isMarked = false;
 
   obj->next = vm.objects;
   vm.objects = obj;
+
+#ifdef DEBUG_LOG_GC
+  debug("%p allocate %zu bytes for %s\n", (void *)obj, size, getType(type));
+#endif
 
   return obj;
 }
