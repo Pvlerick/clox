@@ -1,0 +1,25 @@
+fun f() {
+  print "f() with no capture";
+}
+
+fun g() {
+  var x = "foo";
+
+  fun inner() {
+    print x;
+  }
+
+  print "g() with capture: ";
+  inner();
+}
+
+var a;
+
+if (rand(1, 10) > 5) {
+  a = f;
+} else {
+  a = g;
+}
+
+a();
+

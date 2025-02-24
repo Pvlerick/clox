@@ -6,6 +6,8 @@
 #include "stack.h"
 #include "table.h"
 #include "value.h"
+#include <limits.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -42,6 +44,33 @@ static Value envNative(int argCount, Value *args) {
   return NIL_VAL;
 }
 
+static Value randNative(int argCout, Value *args) {
+  if (!IS_NUMBER(*args) || !IS_NUMBER(*(args + 1))) {
+    runtimeError("arguments to 'rand' native function must be numbers.");
+  }
+
+  double a = AS_NUMBER(*args);
+  double b = AS_NUMBER(*(args + 1));
+
+  if (a >= b) {
+    runtimeError("second argument to 'rand' native function must be strictly "
+                 "larger than first argument.");
+  }
+
+  if (a < INT_MIN || a > INT_MAX || b < INT_MIN || b > INT_MAX) {
+    printf("a: %f; b: %f\n", a, b);
+    runtimeError(
+        "arguments to 'rand' native function must be in integer range.");
+  }
+
+  int lower = (int)round(a);
+  int upper = (int)round(b);
+
+  srand(time(nullptr));
+
+  return NUMBER_VAL(rand() % upper + lower);
+}
+
 void initVM() {
   initStack(&vm.stack);
   vm.objects = nullptr;
@@ -50,6 +79,7 @@ void initVM() {
 
   defineNative("clock", clockNative, 0);
   defineNative("env", envNative, 1);
+  defineNative("rand", randNative, 2);
 }
 
 void freeVM() {
@@ -74,7 +104,7 @@ static void runtimeError(const char *format, ...) {
 
   for (int i = vm.frameCount - 1; i >= 0; i--) {
     CallFrame *frame = &vm.frames[i];
-    ObjFunction *fun = frame->closure->function;
+    ObjFunction *fun = GET_CALLEE(frame);
     size_t instruction = frame->ip - fun->chunk.code - 1;
     fprintf(stderr, "[line %d] in ",
             getInstructionLine(&fun->chunk.lines, instruction));
@@ -100,7 +130,28 @@ static void defineNative(const char *name, NativeFn fun, int arity) {
   pop();
 }
 
-static bool call(ObjClosure *closure, int argCount) {
+static bool callFunction(ObjFunction *fun, int argCount) {
+  if (argCount != fun->arity) {
+    runtimeError("Expected %d arguments but got %d for <fn %.*s>", fun->arity,
+                 argCount, fun->name->length, getCString(fun->name));
+    return false;
+  }
+
+  if (vm.frameCount == FRAMES_MAX) {
+    runtimeError("Stack overflow.");
+    return false;
+  }
+
+  CallFrame *frame = &vm.frames[vm.frameCount++];
+  frame->type = CALLEE_FUNCTION;
+  frame->as.function = fun;
+  frame->ip = fun->chunk.code;
+  frame->stackIndex = vm.stack.count - argCount - 1;
+
+  return true;
+}
+
+static bool callClosure(ObjClosure *closure, int argCount) {
   if (argCount != closure->function->arity) {
     runtimeError("Expected %d arguments but got %d for <fn %.*s>",
                  closure->function->arity, argCount,
@@ -115,7 +166,8 @@ static bool call(ObjClosure *closure, int argCount) {
   }
 
   CallFrame *frame = &vm.frames[vm.frameCount++];
-  frame->closure = closure;
+  frame->type = CALLEE_CLOSURE;
+  frame->as.closure = closure;
   frame->ip = closure->function->chunk.code;
   frame->stackIndex = vm.stack.count - argCount - 1;
 
@@ -125,8 +177,10 @@ static bool call(ObjClosure *closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
+    case OBJ_FUNCTION:
+      return callFunction(AS_FUNCTION(callee), argCount);
     case OBJ_CLOSURE:
-      return call(AS_CLOSURE(callee), argCount);
+      return callClosure(AS_CLOSURE(callee), argCount);
     case OBJ_NATIVE:
       ObjNative *native = AS_NATIVE(callee);
       if (native->arity != argCount) {
@@ -202,10 +256,9 @@ static InterpretResult run() {
 
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (uint16_t)((*(ip - 2)) << 8) | *(ip - 1))
-#define READ_CONSTANT()                                                        \
-  (frame->closure->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT() (GET_CALLEE(frame)->chunk.constants.values[READ_BYTE()])
 #define READ_LONG_CONSTANT()                                                   \
-  frame->closure->function->chunk.constants.values[READ_SHORT()]
+  (GET_CALLEE(frame)->chunk.constants.values[READ_SHORT()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define READ_STRING_LONG() AS_STRING(READ_LONG_CONSTANT())
 #define BINARY_OP(valueType, op)                                               \
@@ -232,8 +285,8 @@ static InterpretResult run() {
       printf(" ]");
     }
     printf("\n");
-    disassembleInstruction(&frame->closure->function->chunk,
-                           (int)(ip - frame->closure->function->chunk.code));
+    ObjFunction *callee = GET_CALLEE(frame);
+    disassembleInstruction(&callee->chunk, (int)(ip - callee->chunk.code));
 #endif
 
     uint8_t instruction;
@@ -307,7 +360,7 @@ static InterpretResult run() {
       break;
     case OP_GET_UPVALUE:
       uint8_t get_upvalue_slot = READ_BYTE();
-      ObjUpvalue *upvalue = frame->closure->upvalues[get_upvalue_slot];
+      ObjUpvalue *upvalue = frame->as.closure->upvalues[get_upvalue_slot];
       if (upvalue->stackIndex != -1) {
         push(vm.stack.values[upvalue->stackIndex]);
       } else {
@@ -316,7 +369,7 @@ static InterpretResult run() {
       break;
     case OP_SET_UPVALUE:
       uint8_t set_upvalue_slot = READ_BYTE();
-      frame->closure->upvalues[set_upvalue_slot]->stackIndex =
+      frame->as.closure->upvalues[set_upvalue_slot]->stackIndex =
           vm.stack.count - 1;
       break;
     case OP_GREATER:
@@ -394,7 +447,7 @@ static InterpretResult run() {
         if (isLocal) {
           closure->upvalues[i] = captureUpvalue(frame->stackIndex + index);
         } else {
-          closure->upvalues[i] = frame->closure->upvalues[index];
+          closure->upvalues[i] = frame->as.closure->upvalues[index];
         }
       }
       break;
@@ -451,7 +504,7 @@ InterpretResult interpret(const char *source) {
   ObjClosure *closure = newClosure(fun);
   pop();
   push(OBJ_VAL(closure));
-  call(closure, 0);
+  callClosure(closure, 0);
 
   return run();
 }

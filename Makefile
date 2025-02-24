@@ -4,16 +4,16 @@ objects = src/main.c src/chunk.c src/debug.c src/line.c src/memory.c src/value.c
 mmm_linker_options = -Xlinker --wrap -Xlinker malloc -Xlinker --wrap -Xlinker free -Xlinker --wrap -Xlinker realloc
 
 build:
-	gcc -std=c2x $(mmm_linker_options) -o clox $(objects)
+	gcc -std=c2x $(mmm_linker_options) -o clox $(objects) -lm
 
 build-debug:
-	gcc -std=c2x $(mmm_linker_options) -D DEBUG -D DEBUG_TRACE_EXECUTION -D DEBUG_PRINT_CODE -o clox $(objects)
+	gcc -std=c2x $(mmm_linker_options) -D DEBUG -D DEBUG_TRACE_EXECUTION -D DEBUG_PRINT_CODE -o clox $(objects) -lm
 
 build-trace:
-	gcc -std=c2x $(mmm_linker_options) -D DEBUG -D TRACE -D DEBUG_TRACE_MEMORY -D DEBUG_TRACE_EXECUTION -D DEBUG_PRINT_CODE -o clox $(objects)
+	gcc -std=c2x $(mmm_linker_options) -D DEBUG -D TRACE -D DEBUG_TRACE_MEMORY -D DEBUG_TRACE_EXECUTION -D DEBUG_PRINT_CODE -o clox $(objects) -lm
 
 build-nommm:
-	gcc -std=c2x -o clox $(objects)
+	gcc -std=c2x -o clox $(objects) -lm
 
 clean:
 	rm -f clox test-mmm

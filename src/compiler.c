@@ -523,11 +523,16 @@ static void function(FunctionType type) {
   block();
 
   ObjFunction *fun = endCompiler();
-  emitClosure(OBJ_VAL(fun));
 
-  for (int i = 0; i < fun->upvalueCount; i++) {
-    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-    emitByte(compiler.upvalues[i].index);
+  if (fun->upvalueCount > 0) {
+    emitClosure(OBJ_VAL(fun));
+
+    for (int i = 0; i < fun->upvalueCount; i++) {
+      emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+      emitByte(compiler.upvalues[i].index);
+    }
+  } else {
+    emitConstant(OBJ_VAL(fun));
   }
 }
 

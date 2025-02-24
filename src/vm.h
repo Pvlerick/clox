@@ -9,8 +9,19 @@
 
 #define FRAMES_MAX 64
 
+#define GET_CALLEE(frame) (frame->type == CALLEE_CLOSURE ? frame->as.closure->function : frame->as.function)
+
+typedef enum {
+  CALLEE_FUNCTION,
+  CALLEE_CLOSURE,
+} CalleeType;
+
 typedef struct {
-  ObjClosure *closure;
+  CalleeType type;
+  union {
+    ObjClosure *closure;
+    ObjFunction *function;
+  } as;
   uint8_t *ip;
   int stackIndex;
 } CallFrame;
