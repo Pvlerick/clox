@@ -15,11 +15,17 @@ void freeStack(Stack *stack) {
 
 void pushOnStack(Stack *stack, Value value) {
   if (stack->capacity < stack->count + 1) {
+    if (IS_OBJ(value))
+      disableGC();
+
     int oldCapacity = stack->capacity;
     stack->capacity = GROW_CAPACITY(oldCapacity);
     stack->values =
         GROW_ARRAY(Value, stack->values, oldCapacity, stack->capacity);
     stack->top = stack->values + stack->count;
+
+    if (IS_OBJ(value))
+      enableGC();
   }
 
   stack->top = &stack->values[stack->count];

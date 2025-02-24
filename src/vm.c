@@ -19,6 +19,8 @@
 #include "debug.h"
 #endif
 
+#define INITIAL_NEXT_GC (1024 * 1024)
+
 VM vm;
 
 static void runtimeError(const char *format, ...);
@@ -58,7 +60,6 @@ static Value randNative(int argCout, Value *args) {
   }
 
   if (a < INT_MIN || a > INT_MAX || b < INT_MIN || b > INT_MAX) {
-    printf("a: %f; b: %f\n", a, b);
     runtimeError(
         "arguments to 'rand' native function must be in integer range.");
   }
@@ -74,6 +75,13 @@ static Value randNative(int argCout, Value *args) {
 void initVM() {
   initStack(&vm.stack);
   vm.objects = nullptr;
+  vm.bytesAllocated = 0;
+  vm.nextGC = INITIAL_NEXT_GC;
+
+  vm.grayCount = 0;
+  vm.grayCapacity = 0;
+  vm.grayStack = nullptr;
+
   initTable(&vm.globals);
   initTable(&vm.strings);
 
@@ -118,8 +126,9 @@ static void runtimeError(const char *format, ...) {
   resetStack();
 }
 
-static void push(Value value) { pushOnStack(&vm.stack, value); }
-static Value pop() { return popFromStack(&vm.stack); }
+void push(Value value) { pushOnStack(&vm.stack, value); }
+Value pop() { return popFromStack(&vm.stack); }
+
 static Value peek(int distance) { return peekFromStack(&vm.stack, distance); }
 
 static void defineNative(const char *name, NativeFn fun, int arity) {
@@ -241,11 +250,14 @@ static bool isFalsey(Value value) {
 }
 
 static void concatenate() {
-  ObjString *b = AS_STRING(pop());
-  ObjString *a = AS_STRING(pop());
+  ObjString *b = AS_STRING(peek(0));
+  ObjString *a = AS_STRING(peek(1));
 
   ObjString *result =
       allocateString(a->length + b->length, 2, toStringRef(a), toStringRef(b));
+
+  pop();
+  pop();
 
   push(OBJ_VAL(result));
 }

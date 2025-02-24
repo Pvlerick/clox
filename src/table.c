@@ -136,13 +136,31 @@ ObjString *tableFindString(Table *table, const char *chars, int length,
   }
 }
 
+void tableRemoveWhite(Table *table) {
+  for (int i = 0; i < table->capacity; i++) {
+    Entry *entry = &table->entries[i];
+    if (entry->key != nullptr && !entry->key->obj.isMarked) {
+      tableDelete(table, entry->key);
+    }
+  }
+}
+
+void markTable(Table *table) {
+  for (int i = 0; i < table->capacity; i++) {
+    Entry *entry = &table->entries[i];
+    Obj *key = (Obj *)entry->key;
+    markObject((Obj *)entry->key);
+    markValue(entry->value);
+  }
+}
+
 void tableDump(Table *table) {
   printf("dumping table (count: %d, capacity: %d)\n", table->count,
          table->capacity);
   for (int i = 0; i < table->capacity; i++) {
     Entry *entry = &table->entries[i];
     if (entry->key != nullptr) {
-      printf("[%d '%.*s' %d] -> ", i, entry->key->length,
+      printf("[%d | '%.*s' | %d] -> ", i, entry->key->length,
              getCString(entry->key), entry->key->hash);
       printValue(entry->value);
       printf("\n");
