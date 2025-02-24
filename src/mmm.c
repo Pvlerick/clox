@@ -1,4 +1,5 @@
 #include <err.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,13 +26,13 @@ typedef struct {
   HeapBlock *first;
 } Heap;
 
-#define HEAP_MAX 131070
+#define HEAP_MAX (1024 * 512)
 
 Heap heap = {.first = nullptr};
 
 void initHeap() {
-  trace("MEM: heap size: %d bytes\n", HEAP_MAX);
-  trace("MEM: heap block size: %lu bytes\n", HEAP_BLOCK_SIZE);
+  trace("MEM: heap size is %d bytes\n", HEAP_MAX);
+  trace("MEM: heap block size is %lu bytes\n", HEAP_BLOCK_SIZE);
 
   void *heapStart = sbrk(HEAP_MAX);
 
@@ -101,23 +102,31 @@ void *__wrap_malloc(size_t size) {
 
   size_t alignedSize = ALIGN_TO_WORD_SIZE(size);
 
-  trace("MEM: allocation request for %zu bytes (aligned size for %zu)\n",
+  trace("MEM: allocation request for %zu bytes, aligned size is %zu bytes\n",
         alignedSize, size);
 
   HeapBlock *firstSuitable = heap.first;
-  while (!(firstSuitable->isFree &&
+  while ((firstSuitable != nullptr) &&
+         !(firstSuitable->isFree &&
            ((firstSuitable->size == alignedSize) ||
             firstSuitable->size > alignedSize + HEAP_BLOCK_SIZE)))
     firstSuitable = firstSuitable->next;
 
-  trace("MEM: suitable block found at %p, block size: %lu\n", firstSuitable,
+  if (firstSuitable == nullptr) {
+    err(ENOMEM,
+        "Error: out of memory - no suitable block found on the heap to "
+        "allocate %zu bytes\n",
+        alignedSize);
+  }
+
+  trace("MEM: suitable block found at %p, block size is %lu\n", firstSuitable,
         firstSuitable->size);
 
   if (firstSuitable->size == alignedSize) {
     // Requested size perfectly match free size, just update the block
     firstSuitable->isFree = false;
-    trace("MEM: allocated %zu bytes as %p\n", alignedSize,
-          firstSuitable->content);
+    trace("MEM: allocated %zu bytes at %p, block is at %p\n", alignedSize,
+          firstSuitable->content, firstSuitable);
     return firstSuitable->content;
   }
 
@@ -134,8 +143,8 @@ void *__wrap_malloc(size_t size) {
   firstSuitable->isFree = false;
   firstSuitable->next = next;
 
-  trace("MEM: allocated %zu bytes as %p\n", alignedSize,
-        firstSuitable->content);
+  trace("MEM: allocated %zu bytes at %p, block is at %p\n", alignedSize,
+        firstSuitable->content, firstSuitable);
   return firstSuitable->content;
 }
 
@@ -156,11 +165,16 @@ void __wrap_free(void *ptr) {
   while ((current != nullptr) && (current->content != ptr))
     current = current->next;
 
-  if (current == nullptr || current->isFree)
-    err(EXIT_FAILURE, "Error: trying to free unallocated pointer: %p\n",
-        current);
+  if (current == nullptr) {
+    err(EXIT_FAILURE,
+        "Error: cannot free block at %p because it was not found\n", ptr);
+  }
 
-  trace("MEM: freeing: %p\n", ptr);
+  if (current->isFree)
+    err(EXIT_FAILURE, "Error: trying to free unallocated pointer %p\n", ptr);
+
+  trace("MEM: freeing %d bytes at %p, block is at %p\n", current->size, ptr,
+        current);
 
   current->isFree = true;
 

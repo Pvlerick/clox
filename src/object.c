@@ -14,9 +14,15 @@
 static Obj *allocateObject(size_t size, ObjType type) {
   Obj *obj = (Obj *)reallocate(nullptr, 0, size);
   obj->type = type;
+  obj->isMarked = false;
 
   obj->next = vm.objects;
   vm.objects = obj;
+
+#ifdef DEBUG_LOG_GC
+  debug("GC:  %p allocate %zu bytes for %s\n", (void *)obj, size,
+        getType(type));
+#endif
 
   return obj;
 }
@@ -105,6 +111,7 @@ ObjString *allocateString(int length, int count, ...) {
       tableFindString(&vm.strings, string->content, length, string->hash);
 
   if (interned != nullptr) {
+    vm.objects = vm.objects->next;
     FREE(ObjString, string);
     return interned;
   }
@@ -113,7 +120,9 @@ ObjString *allocateString(int length, int count, ...) {
   string->length = length;
   string->isBorrowed = false;
 
+  push(OBJ_VAL(string));
   tableSet(&vm.strings, string, NIL_VAL);
+  pop();
 
   return string;
 }
@@ -131,10 +140,12 @@ ObjString *borrowString(const char *chars, int length) {
 
   string->length = length;
   string->isBorrowed = true;
-  string->hash = hashString(chars, length);
+  string->hash = hash;
   memcpy((void *)string->content, (void *)&chars, sizeof(char *));
 
+  push(OBJ_VAL(string));
   tableSet(&vm.strings, string, NIL_VAL);
+  pop();
 
   return string;
 }

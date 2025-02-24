@@ -30,6 +30,7 @@ typedef enum {
 
 struct Obj {
   ObjType type;
+  bool isMarked;
   struct Obj *next;
 };
 
@@ -88,11 +89,29 @@ ObjString *borrowString(const char* chars, int length);
 uint32_t hashString(const char *key, int length);
 const char *getCString(ObjString *string);
 const char *copyString(ObjString *string);
+void debugString(ObjString *string);
 ObjUpvalue *newUpvalue(int stackIndex);
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {
   return (IS_OBJ(value) && AS_OBJ(value)->type == type);
 }
+
+#ifdef DEBUG_LOG_GC
+static inline const char *getType(ObjType type) {
+  switch (type) {
+  case OBJ_FUNCTION:
+    return "function";
+  case OBJ_STRING:
+    return "string";
+  case OBJ_NATIVE:
+    return "native function";
+  case OBJ_CLOSURE:
+    return "closure";
+  case OBJ_UPVALUE:
+    return "upvalue";
+  }
+}
+#endif
 
 #endif
