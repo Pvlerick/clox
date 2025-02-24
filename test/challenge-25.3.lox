@@ -1,0 +1,30 @@
+fun ctor(x, y) {
+  var field_x = x;
+  var field_y = y;
+
+  fun call(name) {
+    if (name == "x") {
+      return field_x;
+    }
+
+    if (name == "y") {
+      return field_y;
+    }
+
+    return -1;
+  }
+
+  return call;
+}
+
+fun add(v_one, v_two) {
+  return ctor(v_one("x") + v_two("x"), v_one("y") + v_two("y"));
+}
+
+var vec_one = ctor(7, 42);
+var vec_two = ctor(1, 2);
+
+let vec_res = add(vec_one, vec_two);
+
+print vec_res("x");
+print vec_res("y");
