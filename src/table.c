@@ -146,13 +146,12 @@ void tableRemoveWhite(Table *table) {
 }
 
 void markTable(Table *table) {
-  printf("markTable\n");
   for (int i = 0; i < table->capacity; i++) {
     Entry *entry = &table->entries[i];
+    Obj *key = (Obj *)entry->key;
     markObject((Obj *)entry->key);
     markValue(entry->value);
   }
-  printf("done markTable\n");
 }
 
 void tableDump(Table *table) {
@@ -161,7 +160,7 @@ void tableDump(Table *table) {
   for (int i = 0; i < table->capacity; i++) {
     Entry *entry = &table->entries[i];
     if (entry->key != nullptr) {
-      printf("[%d '%.*s' %d] -> ", i, entry->key->length,
+      printf("[%d | '%.*s' | %d] -> ", i, entry->key->length,
              getCString(entry->key), entry->key->hash);
       printValue(entry->value);
       printf("\n");

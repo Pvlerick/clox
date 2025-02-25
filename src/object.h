@@ -89,6 +89,7 @@ ObjString *borrowString(const char* chars, int length);
 uint32_t hashString(const char *key, int length);
 const char *getCString(ObjString *string);
 const char *copyString(ObjString *string);
+void debugString(ObjString *string);
 ObjUpvalue *newUpvalue(int stackIndex);
 void printObject(Value value);
 

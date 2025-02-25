@@ -29,7 +29,10 @@ static const char *getType(ObjType type) {
 static Obj *allocateObject(size_t size, ObjType type) {
   Obj *obj = (Obj *)reallocate(nullptr, 0, size);
   obj->type = type;
-  obj->isMarked = false;
+
+  // Mark the object, otherwise it might be collected when inserted in the vm
+  // globals if it triggers a table resize
+  obj->isMarked = true;
 
   obj->next = vm.objects;
   vm.objects = obj;
@@ -152,7 +155,7 @@ ObjString *borrowString(const char *chars, int length) {
 
   string->length = length;
   string->isBorrowed = true;
-  string->hash = hashString(chars, length);
+  string->hash = hash;
   memcpy((void *)string->content, (void *)&chars, sizeof(char *));
 
   tableSet(&vm.strings, string, NIL_VAL);
@@ -192,7 +195,6 @@ void printObject(Value value) {
     break;
   case OBJ_STRING:
     ObjString *string = AS_STRING(value);
-    debug("printing string\n");
     printf("%.*s", string->length, getCString(string));
     break;
   case OBJ_UPVALUE:

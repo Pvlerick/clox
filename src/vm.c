@@ -58,7 +58,6 @@ static Value randNative(int argCout, Value *args) {
   }
 
   if (a < INT_MIN || a > INT_MAX || b < INT_MIN || b > INT_MAX) {
-    printf("a: %f; b: %f\n", a, b);
     runtimeError(
         "arguments to 'rand' native function must be in integer range.");
   }
