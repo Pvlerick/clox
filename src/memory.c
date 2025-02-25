@@ -30,19 +30,30 @@ void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
 }
 
 void markObject(Obj *obj) {
+  debug("markObject\n");
   if (obj == nullptr)
     return;
 
   if (obj->isMarked)
     return;
 
+  debug("checks done for %p\n", obj);
+  if (obj->type == 3) {
+    ObjString *str = (ObjString *)obj;
+    debug("string is %s\n", str->isBorrowed ? "borrowed" : "owned");
+    if (str->isBorrowed)
+      debug("str location: %p\n", getCString(str));
+  }
 #ifdef DEBUG_LOG_GC
-  debug("%p mark ", (void *)obj);
+  debug("GC:  %p mark ", obj);
   printValue(OBJ_VAL(obj));
   debug("\n");
 #endif
+  debug("dbg print done\n");
 
   obj->isMarked = true;
+
+  debug("marked\n");
 
   if (vm.grayCapacity < vm.grayCount + 1) {
     vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
@@ -55,11 +66,14 @@ void markObject(Obj *obj) {
   }
 
   vm.grayStack[vm.grayCount++] = obj;
+  debug("done markObject\n");
 }
 
 void markValue(Value value) {
+  debug("markValue\n");
   if (IS_OBJ(value))
     markObject(AS_OBJ(value));
+  debug("done markValue\n");
 }
 
 static void markArray(ValueArray *array) {
@@ -70,7 +84,7 @@ static void markArray(ValueArray *array) {
 
 static void blackenObject(Obj *obj) {
 #ifdef DEBUG_LOG_GC
-  debug("%p blacken ", (void *)obj);
+  debug("GC:  %p blacken ", (void *)obj);
   printValue(OBJ_VAL(obj));
   debug("\n");
 #endif
@@ -148,16 +162,45 @@ static void traceReferences() {
   }
 }
 
+static void sweep() {
+  Obj *previous = nullptr;
+  Obj *obj = vm.objects;
+
+  while (obj != nullptr) {
+    debug("GC:  %p inspecting object for sweeping\n", obj);
+    if (obj->isMarked) {
+      debug("%p is marked\n", obj);
+      obj->isMarked = false;
+      previous = obj;
+      obj = obj->next;
+    } else {
+      debug("GC:  %p is NOT marked\n", obj);
+      debug("GC:  %p obj type: %d\n", obj, obj->type);
+      Obj *unreached = obj;
+      obj = obj->next;
+      if (previous != nullptr) {
+        previous->next = obj;
+      } else {
+        vm.objects = obj;
+      }
+      debug("GC:  %p is beeing freed\n");
+      freeObject(unreached);
+    }
+  }
+}
+
 void collectGarbage() {
 #ifdef DEBUG_LOG_GC
-  debug("-- GC begin\n");
+  debug("GC:  start\n");
 #endif
 
   markRoots();
   traceReferences();
+  tableRemoveWhite(&vm.strings);
+  sweep();
 
 #ifdef DEBUG_LOG_GC
-  debug("-- GC end\n");
+  debug("GC:  end\n");
 #endif
 }
 

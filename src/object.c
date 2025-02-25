@@ -35,7 +35,8 @@ static Obj *allocateObject(size_t size, ObjType type) {
   vm.objects = obj;
 
 #ifdef DEBUG_LOG_GC
-  debug("%p allocate %zu bytes for %s\n", (void *)obj, size, getType(type));
+  debug("GC:  %p allocate %zu bytes for %s\n", (void *)obj, size,
+        getType(type));
 #endif
 
   return obj;
@@ -191,6 +192,7 @@ void printObject(Value value) {
     break;
   case OBJ_STRING:
     ObjString *string = AS_STRING(value);
+    debug("printing string\n");
     printf("%.*s", string->length, getCString(string));
     break;
   case OBJ_UPVALUE:

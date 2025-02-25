@@ -116,7 +116,7 @@ void *__wrap_malloc(size_t size) {
   if (firstSuitable->size == alignedSize) {
     // Requested size perfectly match free size, just update the block
     firstSuitable->isFree = false;
-    trace("MEM: allocated %zu bytes as %p\n", alignedSize,
+    trace("MEM: allocated %zu bytes at %p\n", alignedSize,
           firstSuitable->content);
     return firstSuitable->content;
   }
@@ -134,7 +134,7 @@ void *__wrap_malloc(size_t size) {
   firstSuitable->isFree = false;
   firstSuitable->next = next;
 
-  trace("MEM: allocated %zu bytes as %p\n", alignedSize,
+  trace("MEM: allocated %zu bytes at %p\n", alignedSize,
         firstSuitable->content);
   return firstSuitable->content;
 }
