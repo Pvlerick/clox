@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "value.h"
+#include "vm.h"
 #include <stdint.h>
 
 #define ALLOCATE(type, count) \
@@ -18,6 +19,11 @@
 
 #define FREE_ARRAY(type, pointer, oldCount) \
   reallocate(pointer, sizeof(type) * (oldCount), 0)
+
+#define MARK(obj) ((obj)->mark = vm.markValue)
+#define UNMARK(obj) ((obj)->mark = !vm.markValue)
+#define IS_MARKED(obj) ((obj)->mark == vm.markValue)
+#define FLIP_MARK() (vm.markValue = !vm.markValue)
 
 void* reallocate(void* pointer, size_t oldSize, size_t newSize);
 void markObject(Obj *obj);

@@ -42,7 +42,7 @@ void markObject(Obj *obj) {
   if (obj == nullptr)
     return;
 
-  if (obj->isMarked)
+  if (IS_MARKED(obj))
     return;
 
 #ifdef DEBUG_LOG_GC
@@ -51,7 +51,7 @@ void markObject(Obj *obj) {
   debug("'\n");
 #endif
 
-  obj->isMarked = true;
+  MARK(obj);
 
   if (vm.grayCapacity < vm.grayCount + 1) {
     vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
@@ -161,8 +161,7 @@ static void sweep() {
   Obj *obj = vm.objects;
 
   while (obj != nullptr) {
-    if (obj->isMarked) {
-      obj->isMarked = false;
+    if (IS_MARKED(obj)) {
       previous = obj;
       obj = obj->next;
     } else {
@@ -211,6 +210,8 @@ void collectGarbage() {
   debug("GC:  collected %zu bytes (from %zu to %zu) next at %zu\n",
         before - vm.bytesAllocated, before, vm.bytesAllocated, vm.nextGC);
 #endif
+
+  FLIP_MARK();
 }
 
 void disableGC() {

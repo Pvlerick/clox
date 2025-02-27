@@ -14,7 +14,7 @@
 static Obj *allocateObject(size_t size, ObjType type) {
   Obj *obj = (Obj *)reallocate(nullptr, 0, size);
   obj->type = type;
-  obj->isMarked = false;
+  UNMARK(obj);
 
   obj->next = vm.objects;
   vm.objects = obj;

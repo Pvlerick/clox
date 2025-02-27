@@ -81,6 +81,7 @@ void initVM() {
   vm.grayCount = 0;
   vm.grayCapacity = 0;
   vm.grayStack = nullptr;
+  vm.markValue = true;
 
   initTable(&vm.globals);
   initTable(&vm.strings);
@@ -399,7 +400,7 @@ static InterpretResult run() {
         push(NUMBER_VAL(a + b));
       } else {
         frame->ip = ip;
-        runtimeError("Operands must be two numbers of two strings.");
+        runtimeError("Operands must be two numbers or two strings.");
         return INTERPRET_RUNTIME_ERROR;
       }
       break;
