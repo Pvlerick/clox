@@ -28,6 +28,24 @@ void freeValueArray(ValueArray *array) {
   initValueArray(array);
 }
 
+void valueArrayDump(ValueArray *array) {
+  printf("dumping varlue array (count: %d, capacity: %d)\n", array->count,
+         array->capacity);
+  for (int i = 0; i < array->capacity; i++) {
+    Value *value = &array->values[i];
+    if (value != nullptr) {
+      printf("[%d | ", i);
+      if (i < array->count) {
+        printf("'");
+        printValue(*value);
+        printf("' ]\n");
+      } else {
+        printf("(empty) ]\n");
+      }
+    }
+  }
+}
+
 void printValue(Value value) {
   switch (value.type) {
   case VAL_BOOL:

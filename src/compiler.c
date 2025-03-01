@@ -200,15 +200,12 @@ static ConstRef makeConstant(Value value) {
   return addConstant(currentChunk(), value);
 }
 
-static void emitConstant(Value value) {
-  ConstRef ref = makeConstant(value);
+static void emitConstantReference(ConstRef ref) {
   switch (ref.type) {
   case CONST:
-    emitByte(OP_CONSTANT);
     emitByte(ref.as.constant);
     break;
   case CONST_LONG:
-    emitByte(OP_CONSTANT_LONG);
     uint8_t *addr = (uint8_t *)&ref.as.longConstant;
     emitByte(*(addr + 1));
     emitByte(*addr);
@@ -216,20 +213,28 @@ static void emitConstant(Value value) {
   }
 }
 
-static void emitClosure(Value value) {
-  ConstRef ref = makeConstant(value);
+static void emitOpOrOpLong(ConstRef ref, uint8_t byteIfConst,
+                           uint8_t byteIfConstLong) {
   switch (ref.type) {
   case CONST:
-    emitByte(OP_CLOSURE);
-    emitByte(ref.as.constant);
+    emitByte(byteIfConst);
     break;
   case CONST_LONG:
-    emitByte(OP_CLOSURE_LONG);
-    uint8_t *addr = (uint8_t *)&ref.as.longConstant;
-    emitByte(*(addr + 1));
-    emitByte(*addr);
+    emitByte(byteIfConstLong);
     break;
   }
+}
+
+static void emitConstant(Value value) {
+  ConstRef ref = makeConstant(value);
+  emitOpOrOpLong(ref, OP_CONSTANT, OP_CONSTANT_LONG);
+  emitConstantReference(ref);
+}
+
+static void emitClosure(Value value) {
+  ConstRef ref = makeConstant(value);
+  emitOpOrOpLong(ref, OP_CLOSURE, OP_CLOSURE_LONG);
+  emitConstantReference(ref);
 }
 
 static void patchJump(int offset) {
@@ -449,19 +454,8 @@ static void defineVariable(VariableRef ref) {
     return;
   }
 
-  switch (ref.as.global.type) {
-  case CONST:
-    emitBytes(OP_DEFINE_GLOBAL, ref.as.global.as.constant);
-    break;
-  case CONST_LONG:
-    uint8_t *addr = (uint8_t *)&ref.as.global.as.longConstant;
-    emitByte(OP_DEFINE_GLOBAL_LONG);
-    emitByte(*(addr + 1));
-    emitByte(*addr);
-    break;
-  default:
-    break;
-  }
+  emitOpOrOpLong(ref.as.global, OP_DEFINE_GLOBAL, OP_DEFINE_GLOBAL_LONG);
+  emitConstantReference(ref.as.global);
 }
 
 static uint8_t argumentList() {
@@ -534,6 +528,19 @@ static void function(FunctionType type) {
   } else {
     emitConstant(OBJ_VAL(fun));
   }
+}
+
+static void classDeclaration() {
+  ConstRef nameConstant = identifierConstant(&parser.current);
+  VariableRef ref = parseVariable("Expected class name.");
+
+  emitOpOrOpLong(nameConstant, OP_CLASS, OP_CLASS_LONG);
+  emitConstantReference(nameConstant);
+
+  defineVariable(ref);
+
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
 }
 
 static void funDeclaration() {
@@ -763,7 +770,9 @@ static void synchronize() {
 }
 
 static void declaration() {
-  if (match(TOKEN_FUN)) {
+  if (match(TOKEN_CLASS)) {
+    classDeclaration();
+  } else if (match(TOKEN_FUN)) {
     funDeclaration();
   } else if (match(TOKEN_VAR) || match(TOKEN_LET)) {
     varDeclaration();
@@ -845,6 +854,20 @@ static void call(bool canAssign) {
   emitBytes(OP_CALL, argCount);
 }
 
+static void dot(bool canAssign) {
+  consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+  ConstRef ref = identifierConstant(&parser.previous);
+
+  if (canAssign && match(TOKEN_EQUAL)) {
+    expression();
+    emitOpOrOpLong(ref, OP_SET_PROPERTY, OP_SET_PROPERTY_LONG);
+  } else {
+    emitOpOrOpLong(ref, OP_GET_PROPERTY, OP_GET_PROPERTY_LONG);
+  }
+
+  emitConstantReference(ref);
+}
+
 static void literal(bool canAssign) {
   switch (parser.previous.type) {
   case TOKEN_FALSE:
@@ -914,28 +937,23 @@ static void globalVariable(Token name, bool canAssign) {
     expression();
     switch (arg.type) {
     case CONST:
-      emitBytes(OP_SET_GLOBAL, arg.as.constant);
+      emitByte(OP_SET_GLOBAL);
       break;
     case CONST_LONG:
-      uint8_t *addr = (uint8_t *)&arg.as.longConstant;
       emitByte(OP_SET_GLOBAL_LONG);
-      emitByte(*(addr + 1));
-      emitByte(*addr);
       break;
     }
   } else {
     switch (arg.type) {
     case CONST:
-      emitBytes(OP_GET_GLOBAL, arg.as.constant);
+      emitByte(OP_GET_GLOBAL);
       break;
     case CONST_LONG:
-      uint8_t *addr = (uint8_t *)&arg.as.longConstant;
       emitByte(OP_GET_GLOBAL_LONG);
-      emitByte(*(addr + 1));
-      emitByte(*addr);
       break;
     }
   }
+  emitConstantReference(arg);
 }
 
 static void namedVariable(Token name, bool canAssign) {
@@ -981,7 +999,7 @@ ParseRule rules[] = {
     [TOKEN_LEFT_BRACE] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_RIGHT_BRACE] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_COMMA] = {nullptr, nullptr, PREC_NONE},
-    [TOKEN_DOT] = {nullptr, nullptr, PREC_NONE},
+    [TOKEN_DOT] = {nullptr, dot, PREC_CALL},
     [TOKEN_MINUS] = {unary, binary, PREC_TERM},
     [TOKEN_PLUS] = {nullptr, binary, PREC_TERM},
     [TOKEN_SEMICOLON] = {nullptr, nullptr, PREC_NONE},
