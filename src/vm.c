@@ -468,6 +468,15 @@ static InterpretResult run() {
       ObjFunction *fun_long = AS_FUNCTION(READ_LONG_CONSTANT());
       ObjClosure *closure_long = newClosure(fun_long);
       push(OBJ_VAL(closure_long));
+      for (int i = 0; i < closure->upvalueCount; i++) {
+        uint8_t isLocal = READ_BYTE();
+        uint8_t index = READ_BYTE();
+        if (isLocal) {
+          closure->upvalues[i] = captureUpvalue(frame->stackIndex + index);
+        } else {
+          closure->upvalues[i] = frame->as.closure->upvalues[index];
+        }
+      }
       break;
     case OP_CLOSE_UPVALUE:
       closeUpvalue(vm.stack.count - 1);
@@ -492,6 +501,12 @@ static InterpretResult run() {
       push(result);
       frame = &vm.frames[vm.frameCount - 1];
       ip = frame->ip;
+      break;
+    case OP_CLASS:
+      push(OBJ_VAL(newClass(READ_STRING())));
+      break;
+    case OP_CLASS_LONG:
+      push(OBJ_VAL(newClass(READ_STRING_LONG())));
       break;
 
 #undef BINARY_OP

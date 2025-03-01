@@ -199,6 +199,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return simpleInstruction("OP_CLOSE_UPVALUE", offset);
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
+  case OP_CLASS:
+    return constantInstruction("OP_CLASS", chunk, offset);
+  case OP_CLASS_LONG:
+    return longConstantInstruction("OP_CLASS_LONG", chunk, offset);
   default:
     debug("Unknown opcode %d\n", instruction);
     return offset + 1;

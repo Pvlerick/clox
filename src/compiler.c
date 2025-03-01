@@ -200,20 +200,30 @@ static ConstRef makeConstant(Value value) {
   return addConstant(currentChunk(), value);
 }
 
-static void emitConstant(Value value) {
-  ConstRef ref = makeConstant(value);
+static void emitConstantReference(ConstRef ref) {
   switch (ref.type) {
   case CONST:
-    emitByte(OP_CONSTANT);
     emitByte(ref.as.constant);
     break;
   case CONST_LONG:
-    emitByte(OP_CONSTANT_LONG);
     uint8_t *addr = (uint8_t *)&ref.as.longConstant;
     emitByte(*(addr + 1));
     emitByte(*addr);
     break;
   }
+}
+
+static void emitConstant(Value value) {
+  ConstRef ref = makeConstant(value);
+  switch (ref.type) {
+  case CONST:
+    emitByte(OP_CONSTANT);
+    break;
+  case CONST_LONG:
+    emitByte(OP_CONSTANT_LONG);
+    break;
+  }
+  emitConstantReference(ref);
 }
 
 static void emitClosure(Value value) {
@@ -536,6 +546,25 @@ static void function(FunctionType type) {
   }
 }
 
+static void classDeclaration() {
+  ConstRef nameConstant = identifierConstant(&parser.current);
+  VariableRef ref = parseVariable("Expected class name.");
+
+  switch (nameConstant.type) {
+  case CONST:
+    emitByte(OP_CLASS);
+    break;
+  case CONST_LONG:
+    emitByte(OP_CLASS_LONG);
+    break;
+  }
+  emitConstantReference(nameConstant);
+  defineVariable(ref);
+
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+}
+
 static void funDeclaration() {
   VariableRef global = parseVariable("Expect function name.");
   markInitialized(true);
@@ -763,7 +792,9 @@ static void synchronize() {
 }
 
 static void declaration() {
-  if (match(TOKEN_FUN)) {
+  if (match(TOKEN_CLASS)) {
+    classDeclaration();
+  } else if (match(TOKEN_FUN)) {
     funDeclaration();
   } else if (match(TOKEN_VAR) || match(TOKEN_LET)) {
     varDeclaration();
