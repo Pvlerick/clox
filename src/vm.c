@@ -187,6 +187,10 @@ static bool callClosure(ObjClosure *closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
+    case OBJ_CLASS:
+      ObjClass *klass = AS_CLASS(callee);
+      vm.stack.top[-argCount - 1] = OBJ_VAL(newInstance(klass));
+      return true;
     case OBJ_FUNCTION:
       return callFunction(AS_FUNCTION(callee), argCount);
     case OBJ_CLOSURE:
@@ -318,6 +322,38 @@ static InterpretResult run() {
       break;
     case OP_FALSE:
       push(BOOL_VAL(false));
+      break;
+    case OP_GET_PROPERTY:
+    case OP_GET_PROPERTY_LONG:
+      if (!IS_INSTANCE(peek(0))) {
+        runtimeError("Only instances have properties.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      ObjInstance *inst_get_prop = AS_INSTANCE(peek(0));
+      ObjString *name_get_prop =
+          instruction == OP_GET_PROPERTY ? READ_STRING() : READ_STRING_LONG();
+      Value value_get_prop;
+      if (tableGet(&inst_get_prop->fields, name_get_prop, &value_get_prop)) {
+        pop();
+        push(value_get_prop);
+        break;
+      }
+      runtimeError("Undefined property: '%.*s'", name_get_prop->length,
+                   name_get_prop->content);
+      return INTERPRET_RUNTIME_ERROR;
+    case OP_SET_PROPERTY:
+    case OP_SET_PROPERTY_LONG:
+      if (!IS_INSTANCE(peek(1))) {
+        runtimeError("Only instances have fields.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      ObjInstance *inst_set_prop = AS_INSTANCE(peek(1));
+      ObjString *name_set_prop =
+          instruction == OP_SET_PROPERTY ? READ_STRING() : READ_STRING_LONG();
+      tableSet(&inst_set_prop->fields, name_set_prop, peek(0));
+      Value value_set_prop = pop();
+      pop();
+      push(value_set_prop);
       break;
     case OP_EQUAL:
       Value a_eq = pop();
@@ -468,6 +504,15 @@ static InterpretResult run() {
       ObjFunction *fun_long = AS_FUNCTION(READ_LONG_CONSTANT());
       ObjClosure *closure_long = newClosure(fun_long);
       push(OBJ_VAL(closure_long));
+      for (int i = 0; i < closure->upvalueCount; i++) {
+        uint8_t isLocal = READ_BYTE();
+        uint8_t index = READ_BYTE();
+        if (isLocal) {
+          closure->upvalues[i] = captureUpvalue(frame->stackIndex + index);
+        } else {
+          closure->upvalues[i] = frame->as.closure->upvalues[index];
+        }
+      }
       break;
     case OP_CLOSE_UPVALUE:
       closeUpvalue(vm.stack.count - 1);
@@ -492,6 +537,12 @@ static InterpretResult run() {
       push(result);
       frame = &vm.frames[vm.frameCount - 1];
       ip = frame->ip;
+      break;
+    case OP_CLASS:
+      push(OBJ_VAL(newClass(READ_STRING())));
+      break;
+    case OP_CLASS_LONG:
+      push(OBJ_VAL(newClass(READ_STRING_LONG())));
       break;
 
 #undef BINARY_OP
