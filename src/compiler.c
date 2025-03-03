@@ -225,10 +225,11 @@ static void emitOpOrOpLong(ConstRef ref, uint8_t byteIfConst,
   }
 }
 
-static void emitConstant(Value value) {
+static ConstRef emitConstant(Value value) {
   ConstRef ref = makeConstant(value);
   emitOpOrOpLong(ref, OP_CONSTANT, OP_CONSTANT_LONG);
   emitConstantReference(ref);
+  return ref;
 }
 
 static void emitClosure(Value value) {
@@ -854,18 +855,64 @@ static void call(bool canAssign) {
   emitBytes(OP_CALL, argCount);
 }
 
+static Value parseString(Token token) {
+  return OBJ_VAL(borrowString(token.start + 1, token.length - 2));
+}
+
+static void string(bool canAssign) {
+  emitConstant(parseString(parser.previous));
+}
+
 static void dot(bool canAssign) {
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
   ConstRef ref = identifierConstant(&parser.previous);
 
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
-    emitOpOrOpLong(ref, OP_SET_PROPERTY, OP_SET_PROPERTY_LONG);
+    emitOpOrOpLong(ref, OP_SET_PROP, OP_SET_PROP_LONG);
   } else {
-    emitOpOrOpLong(ref, OP_GET_PROPERTY, OP_GET_PROPERTY_LONG);
+    emitOpOrOpLong(ref, OP_GET_PROP, OP_GET_PROP_LONG);
   }
 
   emitConstantReference(ref);
+}
+
+static void accessorUsingLiteral(bool canAssign) {
+  ConstRef ref = makeConstant(parseString(parser.current));
+
+  consume(TOKEN_STRING, "Expect property name when using an accessor.");
+  consume(TOKEN_RIGHT_SQBRA, "Expect ']' after accessor.");
+
+  if (canAssign && match(TOKEN_EQUAL)) {
+    expression();
+    emitOpOrOpLong(ref, OP_SET_PROP, OP_SET_PROP_LONG);
+  } else {
+    emitOpOrOpLong(ref, OP_GET_PROP, OP_GET_PROP_LONG);
+  }
+
+  emitConstantReference(ref);
+}
+
+static void accessorUsingIdentifier(bool canAssign) {
+  expression();
+
+  consume(TOKEN_RIGHT_SQBRA, "Expect ']' after accessor.");
+
+  if (canAssign && match(TOKEN_EQUAL)) {
+    expression();
+    emitByte(OP_SET_PROP_STR);
+  } else {
+    emitByte(OP_GET_PROP_STR);
+  }
+}
+
+static void accessor(bool canAssign) {
+  if (check(TOKEN_STRING))
+    accessorUsingLiteral(canAssign);
+  else if (check(TOKEN_IDENTIFIER))
+    accessorUsingIdentifier(canAssign);
+  else
+    errorAtCurrent("Expect string literal or string variable inside accessor.");
 }
 
 static void literal(bool canAssign) {
@@ -903,11 +950,6 @@ static void or_(bool canAssign) {
 
   parsePrecedence(PREC_OR);
   patchJump(endJump);
-}
-
-static void string(bool canAssign) {
-  emitConstant(OBJ_VAL(
-      borrowString(parser.previous.start + 1, parser.previous.length - 2)));
 }
 
 static void localVariable(int index, bool canAssign) {
@@ -998,6 +1040,8 @@ ParseRule rules[] = {
     [TOKEN_RIGHT_PAREN] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_LEFT_BRACE] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_RIGHT_BRACE] = {nullptr, nullptr, PREC_NONE},
+    [TOKEN_LEFT_SQBRA] = {nullptr, accessor, PREC_CALL},
+    [TOKEN_RIGHT_SQBRA] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_COMMA] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_DOT] = {nullptr, dot, PREC_CALL},
     [TOKEN_MINUS] = {unary, binary, PREC_TERM},

@@ -1,0 +1,17 @@
+class Pair {}
+
+var pair = Pair();
+pair["first"] = 1;
+pair["second"] = 2;
+
+print pair.first + pair.second;
+
+var field = "first";
+pair[field] = "foo";
+print pair[field];
+
+pair.second = "bar";
+var fielda = "sec";
+var fieldb = "ond";
+print pair[fielda + fieldb];
+

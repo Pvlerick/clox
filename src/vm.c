@@ -323,15 +323,15 @@ static InterpretResult run() {
     case OP_FALSE:
       push(BOOL_VAL(false));
       break;
-    case OP_GET_PROPERTY:
-    case OP_GET_PROPERTY_LONG:
+    case OP_GET_PROP:
+    case OP_GET_PROP_LONG:
       if (!IS_INSTANCE(peek(0))) {
         runtimeError("Only instances have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
       ObjInstance *inst_get_prop = AS_INSTANCE(peek(0));
       ObjString *name_get_prop =
-          instruction == OP_GET_PROPERTY ? READ_STRING() : READ_STRING_LONG();
+          instruction == OP_GET_PROP ? READ_STRING() : READ_STRING_LONG();
       Value value_get_prop;
       pop();
       if (tableGet(&inst_get_prop->fields, name_get_prop, &value_get_prop)) {
@@ -340,19 +340,48 @@ static InterpretResult run() {
         push(NIL_VAL);
       }
       break;
-    case OP_SET_PROPERTY:
-    case OP_SET_PROPERTY_LONG:
+    case OP_GET_PROP_STR:
+      if (!IS_INSTANCE(peek(1))) {
+        runtimeError("Only instances have properties.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      ObjInstance *inst_get_prop_str = AS_INSTANCE(peek(1));
+      ObjString *name_get_prop_str = AS_STRING(pop());
+      Value value_get_prop_str;
+      pop();
+      if (tableGet(&inst_get_prop_str->fields, name_get_prop_str,
+                   &value_get_prop_str)) {
+        push(value_get_prop_str);
+      } else {
+        push(NIL_VAL);
+      }
+      break;
+    case OP_SET_PROP:
+    case OP_SET_PROP_LONG:
       if (!IS_INSTANCE(peek(1))) {
         runtimeError("Only instances have fields.");
         return INTERPRET_RUNTIME_ERROR;
       }
       ObjInstance *inst_set_prop = AS_INSTANCE(peek(1));
       ObjString *name_set_prop =
-          instruction == OP_SET_PROPERTY ? READ_STRING() : READ_STRING_LONG();
+          instruction == OP_SET_PROP ? READ_STRING() : READ_STRING_LONG();
       tableSet(&inst_set_prop->fields, name_set_prop, peek(0));
       Value value_set_prop = pop();
       pop();
       push(value_set_prop);
+      break;
+    case OP_SET_PROP_STR:
+      if (!IS_INSTANCE(peek(2))) {
+        runtimeError("Only instances have fields.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      ObjInstance *inst_set_prop_str = AS_INSTANCE(peek(2));
+      ObjString *name_set_prop_str = AS_STRING(peek(1));
+      tableSet(&inst_set_prop_str->fields, name_set_prop_str, peek(0));
+      Value value_set_prop_str = pop();
+      pop();
+      pop();
+      push(value_set_prop_str);
       break;
     case OP_EQUAL:
       Value a_eq = pop();
