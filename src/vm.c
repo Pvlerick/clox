@@ -333,14 +333,13 @@ static InterpretResult run() {
       ObjString *name_get_prop =
           instruction == OP_GET_PROPERTY ? READ_STRING() : READ_STRING_LONG();
       Value value_get_prop;
+      pop();
       if (tableGet(&inst_get_prop->fields, name_get_prop, &value_get_prop)) {
-        pop();
         push(value_get_prop);
-        break;
+      } else {
+        push(NIL_VAL);
       }
-      runtimeError("Undefined property: '%.*s'", name_get_prop->length,
-                   name_get_prop->content);
-      return INTERPRET_RUNTIME_ERROR;
+      break;
     case OP_SET_PROPERTY:
     case OP_SET_PROPERTY_LONG:
       if (!IS_INSTANCE(peek(1))) {

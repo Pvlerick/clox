@@ -124,6 +124,8 @@ static inline const char *getType(ObjType type) {
   switch (type) {
   case OBJ_CLASS:
     return "class";
+  case OBJ_INSTANCE:
+    return "instance";
   case OBJ_FUNCTION:
     return "function";
   case OBJ_STRING:

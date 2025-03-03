@@ -1,6 +1,9 @@
 class Pair {}
 
 var pair = Pair();
-pair.first = 1;
-pair.second = 2;
-int pair.first + pair.second;
+
+if (pair.first != nil) {
+  print pair.first;
+} else {
+  print "prop does not exist";
+}
