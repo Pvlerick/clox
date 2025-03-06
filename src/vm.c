@@ -365,10 +365,16 @@ static InterpretResult run() {
       ObjInstance *inst_set_prop = AS_INSTANCE(peek(1));
       ObjString *name_set_prop =
           instruction == OP_SET_PROP ? READ_STRING() : READ_STRING_LONG();
-      tableSet(&inst_set_prop->fields, name_set_prop, peek(0));
+      // tableDump(&inst_set_prop->fields);
+      if (!IS_NIL(peek(0))) {
+        tableSet(&inst_set_prop->fields, name_set_prop, peek(0));
+      } else {
+        tableDelete(&inst_get_prop->fields, name_set_prop);
+      }
       Value value_set_prop = pop();
       pop();
       push(value_set_prop);
+      // tableDump(&inst_set_prop->fields);
       break;
     case OP_SET_PROP_STR:
       if (!IS_INSTANCE(peek(2))) {
@@ -377,7 +383,11 @@ static InterpretResult run() {
       }
       ObjInstance *inst_set_prop_str = AS_INSTANCE(peek(2));
       ObjString *name_set_prop_str = AS_STRING(peek(1));
-      tableSet(&inst_set_prop_str->fields, name_set_prop_str, peek(0));
+      if (!IS_NIL(peek(0))) {
+        tableSet(&inst_set_prop_str->fields, name_set_prop_str, peek(0));
+      } else {
+        tableDelete(&inst_set_prop_str->fields, name_set_prop_str);
+      }
       Value value_set_prop_str = pop();
       pop();
       pop();

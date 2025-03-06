@@ -30,8 +30,7 @@ static Entry *findEntry(Entry *entries, int capacity, ObjString *key) {
         return tombstone != nullptr ? tombstone : entry;
       else if (tombstone == nullptr) // Tombstone
         tombstone = entry;
-    } else if (entry->key->hash == key->hash) // Found it
-    {
+    } else if (entry->key->hash == key->hash) { // Found it
       return entry;
     }
 
@@ -45,6 +44,10 @@ bool tableGet(Table *table, ObjString *key, Value *value) {
 
   Entry *entry = findEntry(table->entries, table->capacity, key);
   if (entry == nullptr)
+    return false;
+
+  if (entry->key == nullptr && IS_BOOL(entry->value) &&
+      (AS_BOOL(entry->value) == true))
     return false;
 
   *value = entry->value;
@@ -90,6 +93,7 @@ bool tableSet(Table *table, ObjString *key, Value value) {
 
   entry->key = key;
   entry->value = value;
+
   return isNewKey;
 }
 
@@ -164,6 +168,10 @@ void tableDump(Table *table) {
              getCString(entry->key), entry->key->hash);
       printValue(entry->value);
       printf("\n");
+    } else if (IS_BOOL(entry->value) && AS_BOOL(entry->value) == true) {
+      printf("[%d | <tombstone> ]\n", i);
+    } else {
+      printf("[%d | <empty> ]\n", i);
     }
   }
 }

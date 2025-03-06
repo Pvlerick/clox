@@ -2,6 +2,7 @@
 #define clox_table_h
 
 #include "value.h"
+
 typedef struct {
   ObjString *key;
   Value value;
