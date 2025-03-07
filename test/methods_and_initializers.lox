@@ -1,0 +1,12 @@
+class Brunch {
+  bacon() {}
+  eggs() {}
+}
+
+// Local class
+fun f() {
+  class Foo {
+    bar() {}
+    qux() {}
+  }
+}

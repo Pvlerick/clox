@@ -283,7 +283,6 @@ static ObjFunction *endCompiler() {
     if (function->name != nullptr) {
       const char *functionName = copyString(function->name);
       disassembleChunk(currentChunk(), functionName);
-      // TODO Use the attribute gcc extension if possible
       free((void *)functionName);
     } else {
       disassembleChunk(currentChunk(), "<script>");
@@ -403,9 +402,7 @@ static void addLocal(Token name, bool readonly) {
   writeLocalArray(&current->locals, local);
 }
 
-static void declareVariable(bool readonly) {
-  Token *name = &parser.previous;
-
+static void declareVariable(Token *name, bool readonly) {
   for (int i = current->locals.count - 1; i >= 0; i--) {
     Local *local = &current->locals.items[i];
 
@@ -432,7 +429,7 @@ static VariableRef parseVariable(const char *errorMessage) {
     ref.as.global = identifierConstant(&parser.previous);
   } else {
     ref.type = VAR_LOCAL;
-    declareVariable(ref.readonly);
+    declareVariable(&parser.previous, ref.readonly);
   }
 
   return ref;
@@ -531,8 +528,23 @@ static void function(FunctionType type) {
   }
 }
 
+static void method() {
+  consume(TOKEN_IDENTIFIER, "Expect method name.");
+
+  ConstRef ref = identifierConstant(&parser.previous);
+
+  function(TYPE_FUNCTION);
+
+  emitOpOrOpLong(ref, OP_METHOD, OP_METHOD_LONG);
+  emitConstantReference(ref);
+}
+
+static void namedVariable(Token name, bool canAssign);
+
 static void classDeclaration() {
-  ConstRef nameConstant = identifierConstant(&parser.current);
+  // TODO Inspect the stack and globals because it seems cluttered in here
+  Token className = parser.current;
+  ConstRef nameConstant = identifierConstant(&className);
   VariableRef ref = parseVariable("Expected class name.");
 
   emitOpOrOpLong(nameConstant, OP_CLASS, OP_CLASS_LONG);
@@ -540,8 +552,16 @@ static void classDeclaration() {
 
   defineVariable(ref);
 
+  namedVariable(className, false);
+
   consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
+    method();
+
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+
+  emitByte(OP_POP); // Pop the class from the stack
 }
 
 static void funDeclaration() {
