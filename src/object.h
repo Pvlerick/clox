@@ -9,6 +9,9 @@
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
+#define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
+#define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
+
 #define IS_CLASS(value) isObjType(value, OBJ_CLASS)
 #define AS_CLASS(value) ((ObjClass*)AS_OBJ(value))
 
@@ -28,6 +31,7 @@
 #define AS_STRING(value) ((ObjString*)AS_OBJ(value))
 
 typedef enum {
+  OBJ_BOUND_METHOD,
   OBJ_CLASS,
   OBJ_CLOSURE,
   OBJ_FUNCTION,
@@ -86,6 +90,7 @@ typedef struct {
 typedef struct {
   Obj obj;
   ObjString *name;
+  Table methods;
 } ObjClass;
 
 typedef struct {
@@ -94,17 +99,24 @@ typedef struct {
   Table fields;
 } ObjInstance;
 
+typedef struct {
+  Obj obj;
+  Value receiver;
+  Obj* method;
+} ObjBoundMethod;
+
 typedef struct StringRef {
   int length;
   const char *content;
 } StringRef;
 
-ObjString *newOwnedString(const char *start, size_t length);
+ObjBoundMethod *newBoundMethod(Value receiver, Obj *method);
 ObjClass *newClass(ObjString *name);
 ObjClosure *newClosure(ObjFunction *fun);
 ObjFunction *newFunction();
 ObjInstance *newInstance(ObjClass *klass);
 ObjNative *newNative(NativeFn fun, int arity);
+ObjString *newOwnedString(const char *start, size_t length);
 ObjString *allocateString(int length, int count, ...);
 StringRef toStringRef(ObjString *string);
 ObjString *borrowString(const char* chars, int length);
@@ -122,6 +134,8 @@ static inline bool isObjType(Value value, ObjType type) {
 #ifdef DEBUG_LOG_GC
 static inline const char *getType(ObjType type) {
   switch (type) {
+  case OBJ_BOUND_METHOD:
+    return "bound method";
   case OBJ_CLASS:
     return "class";
   case OBJ_INSTANCE:

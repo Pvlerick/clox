@@ -1,0 +1,21 @@
+class Brunch {
+  bacon() {}
+  eggs() {}
+}
+
+// Local class
+fun f() {
+  var a;
+  class Foo {
+    bar() {
+      return a;
+    }
+    qux() {}
+  }
+}
+
+// Method references
+var b = Brunch();
+b.bacon();
+var c = b.bacon;
+c();

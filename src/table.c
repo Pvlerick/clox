@@ -43,11 +43,11 @@ bool tableGet(Table *table, ObjString *key, Value *value) {
     return false;
 
   Entry *entry = findEntry(table->entries, table->capacity, key);
+
   if (entry == nullptr)
     return false;
 
-  if (entry->key == nullptr && IS_BOOL(entry->value) &&
-      (AS_BOOL(entry->value) == true))
+  if (entry->key == nullptr)
     return false;
 
   *value = entry->value;

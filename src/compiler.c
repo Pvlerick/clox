@@ -54,7 +54,12 @@ typedef struct {
   bool isLocal;
 } Upvalue;
 
-typedef enum { TYPE_FUNCTION, TYPE_SCRIPT } FunctionType;
+typedef enum {
+  TYPE_FUNCTION,
+  TYPE_INITIALIZER,
+  TYPE_METHOD,
+  TYPE_SCRIPT
+} FunctionType;
 
 typedef struct {
   int capacity;
@@ -101,8 +106,13 @@ typedef struct Compiler {
   LocalArray locals;
 } Compiler;
 
+typedef struct ClassCompiler {
+  struct ClassCompiler *enclosing;
+} ClassCompiler;
+
 Parser parser;
 Compiler *current = nullptr;
+ClassCompiler *currentClass = nullptr;
 Chunk *compilingChunk;
 
 static Chunk *currentChunk() { return &current->function->chunk; }
@@ -192,7 +202,12 @@ static int emitJump(uint8_t instruction) {
 }
 
 static void emitReturn() {
-  emitByte(OP_NIL);
+  if (current->type == TYPE_INITIALIZER) {
+    emitBytes(OP_GET_LOCAL, 0);
+  } else {
+    emitByte(OP_NIL);
+  }
+
   emitByte(OP_RETURN);
 }
 
@@ -269,8 +284,15 @@ static void initCompiler(Compiler *compiler, FunctionType type) {
   local.depth = 0;
   local.captured = false;
   local.readonly = true;
-  local.name.start = "";
-  local.name.length = 0;
+
+  if (type != TYPE_FUNCTION) {
+    local.name.start = "this";
+    local.name.length = 4;
+  } else {
+    local.name.start = "";
+    local.name.length = 0;
+  }
+
   writeLocalArray(&current->locals, local);
 }
 
@@ -283,7 +305,6 @@ static ObjFunction *endCompiler() {
     if (function->name != nullptr) {
       const char *functionName = copyString(function->name);
       disassembleChunk(currentChunk(), functionName);
-      // TODO Use the attribute gcc extension if possible
       free((void *)functionName);
     } else {
       disassembleChunk(currentChunk(), "<script>");
@@ -403,9 +424,7 @@ static void addLocal(Token name, bool readonly) {
   writeLocalArray(&current->locals, local);
 }
 
-static void declareVariable(bool readonly) {
-  Token *name = &parser.previous;
-
+static void declareVariable(Token *name, bool readonly) {
   for (int i = current->locals.count - 1; i >= 0; i--) {
     Local *local = &current->locals.items[i];
 
@@ -432,7 +451,7 @@ static VariableRef parseVariable(const char *errorMessage) {
     ref.as.global = identifierConstant(&parser.previous);
   } else {
     ref.type = VAR_LOCAL;
-    declareVariable(ref.readonly);
+    declareVariable(&parser.previous, ref.readonly);
   }
 
   return ref;
@@ -531,8 +550,30 @@ static void function(FunctionType type) {
   }
 }
 
+static void method() {
+  consume(TOKEN_IDENTIFIER, "Expect method name.");
+
+  ConstRef ref = identifierConstant(&parser.previous);
+
+  FunctionType type = TYPE_METHOD;
+
+  if (parser.previous.length == vm.initString->length &&
+      memcmp(parser.previous.start, getCString(vm.initString),
+             vm.initString->length) == 0) {
+    type = TYPE_INITIALIZER;
+  }
+
+  function(type);
+
+  emitOpOrOpLong(ref, OP_METHOD, OP_METHOD_LONG);
+  emitConstantReference(ref);
+}
+
+static void namedVariable(Token name, bool canAssign);
+
 static void classDeclaration() {
-  ConstRef nameConstant = identifierConstant(&parser.current);
+  Token className = parser.current;
+  ConstRef nameConstant = identifierConstant(&className);
   VariableRef ref = parseVariable("Expected class name.");
 
   emitOpOrOpLong(nameConstant, OP_CLASS, OP_CLASS_LONG);
@@ -540,8 +581,22 @@ static void classDeclaration() {
 
   defineVariable(ref);
 
+  ClassCompiler classCompiler;
+  classCompiler.enclosing = currentClass;
+  currentClass = &classCompiler;
+
+  namedVariable(className, false);
+
   consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
+    method();
+
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+
+  emitByte(OP_POP); // Pop the class from the stack
+
+  currentClass = currentClass->enclosing;
 }
 
 static void funDeclaration() {
@@ -720,6 +775,9 @@ static void returnStatement() {
   if (match(TOKEN_SEMICOLON)) {
     emitReturn();
   } else {
+    if (current->type == TYPE_INITIALIZER) {
+      error("Can't return a value from an initializer.");
+    }
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
     emitByte(OP_RETURN);
@@ -870,11 +928,16 @@ static void dot(bool canAssign) {
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
     emitOpOrOpLong(ref, OP_SET_PROP, OP_SET_PROP_LONG);
+    emitConstantReference(ref);
+  } else if (match(TOKEN_LEFT_PAREN)) {
+    uint8_t argCount = argumentList();
+    emitOpOrOpLong(ref, OP_INVOKE, OP_INVOKE_LONG);
+    emitConstantReference(ref);
+    emitByte(argCount);
   } else {
     emitOpOrOpLong(ref, OP_GET_PROP, OP_GET_PROP_LONG);
+    emitConstantReference(ref);
   }
-
-  emitConstantReference(ref);
 }
 
 static void accessor(bool canAssign) {
@@ -993,6 +1056,15 @@ static void variable(bool canAssign) {
   namedVariable(parser.previous, canAssign);
 }
 
+static void this_(bool canAssign) {
+  if (currentClass == nullptr) {
+    error("can't use 'this' outside of a class.");
+    return;
+  }
+
+  variable(false);
+}
+
 static void unary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
 
@@ -1047,7 +1119,7 @@ ParseRule rules[] = {
     [TOKEN_PRINT] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_RETURN] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_SUPER] = {nullptr, nullptr, PREC_NONE},
-    [TOKEN_THIS] = {nullptr, nullptr, PREC_NONE},
+    [TOKEN_THIS] = {this_, nullptr, PREC_NONE},
     [TOKEN_TRUE] = {literal, nullptr, PREC_NONE},
     [TOKEN_LET] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_VAR] = {nullptr, nullptr, PREC_NONE},

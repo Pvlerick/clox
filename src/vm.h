@@ -32,6 +32,7 @@ typedef struct {
   Stack stack;
   Table globals;
   Table strings;
+  ObjString *initString;
   ObjUpvalue *openUpvalues;
   size_t bytesAllocated;
   size_t nextGC;

@@ -1,0 +1,14 @@
+class Scone {
+  init(first, second) {
+    this.first = first;
+    this.second = second;
+  }
+
+  topping() {
+    print "scone with " + this.first + " and " + this.second;
+  }
+}
+
+var s = Scone("cream", "more cream");
+s.topping();
+

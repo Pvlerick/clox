@@ -86,6 +86,24 @@ static int longConstantInstruction(const char *name, Chunk *chunk, int offset) {
   return offset + 3;
 }
 
+static int invokeInstruction(const char *name, Chunk *chunk, int offset) {
+  uint8_t codeIndex = chunk->code[offset + 1];
+  uint8_t argCount = chunk->code[offset + 2];
+  debug("%-16s %4d '", name, codeIndex);
+  printValue(chunk->constants.values[codeIndex]);
+  debug("'\n");
+  return offset + 3;
+}
+
+static int longInvokeInstruction(const char *name, Chunk *chunk, int offset) {
+  uint16_t *codeIndex = (uint16_t *)&chunk->code[offset + 1];
+  uint8_t argCount = chunk->code[offset + 3];
+  debug("%-16s %4d '", name, *codeIndex);
+  printValue(chunk->constants.values[*codeIndex]);
+  debug("'\n");
+  return offset + 4;
+}
+
 static int closureParameters(Chunk *chunk, int offset, int codeIndex) {
   ObjFunction *fun = AS_FUNCTION(chunk->constants.values[codeIndex]);
   for (int i = 0; i < fun->upvalueCount; i++) {
@@ -203,6 +221,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return jumpInstruction("OP_LOOP", -1, chunk, offset);
   case OP_CALL:
     return byteInstruction("OP_CALL", chunk, offset);
+  case OP_INVOKE:
+    return invokeInstruction("OP_INVOKE", chunk, offset);
+  case OP_INVOKE_LONG:
+    return longInvokeInstruction("OP_INVOKE_LONG", chunk, offset);
   case OP_CLOSURE:
     return closureInstruction("OP_CLOSURE", chunk, offset);
   case OP_CLOSURE_LONG:
@@ -215,6 +237,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return constantInstruction("OP_CLASS", chunk, offset);
   case OP_CLASS_LONG:
     return longConstantInstruction("OP_CLASS_LONG", chunk, offset);
+  case OP_METHOD:
+    return constantInstruction("OP_METHOD", chunk, offset);
+  case OP_METHOD_LONG:
+    return longConstantInstruction("OP_METHOD_LONG", chunk, offset);
   default:
     debug("Unknown opcode %d\n", instruction);
     return offset + 1;

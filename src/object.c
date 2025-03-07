@@ -27,9 +27,17 @@ static Obj *allocateObject(size_t size, ObjType type) {
   return obj;
 }
 
+ObjBoundMethod *newBoundMethod(Value receiver, Obj *method) {
+  ObjBoundMethod *bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+  bound->receiver = receiver;
+  bound->method = method;
+  return bound;
+}
+
 ObjClass *newClass(ObjString *name) {
   ObjClass *klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
   klass->name = name;
+  initTable(&klass->methods);
   return klass;
 }
 
@@ -62,7 +70,7 @@ ObjFunction *newFunction() {
   ObjFunction *fun = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
   fun->arity = 0;
   fun->upvalueCount = 0;
-  fun->name = NULL;
+  fun->name = nullptr;
   initChunk(&fun->chunk);
   return fun;
 }
@@ -86,6 +94,12 @@ static void printFunction(ObjFunction *fun) {
     printf("<script>");
   else
     printf("<fn %.*s>", fun->name->length, getCString(fun->name));
+}
+
+static void printClosure(ObjClosure *closure) {
+  printf("<cl ");
+  printFunction(closure->function);
+  printf(" >");
 }
 
 uint32_t hashString(const char *key, int length) {
@@ -163,6 +177,7 @@ ObjString *borrowString(const char *chars, int length) {
   return string;
 }
 
+// TODO inline
 const char *getCString(ObjString *string) {
   return string->isBorrowed ? *(char **)string->content : string->content;
 }
@@ -184,12 +199,26 @@ ObjUpvalue *newUpvalue(int stackIndex) {
 
 void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
+  case OBJ_BOUND_METHOD:
+    ObjBoundMethod *bound = AS_BOUND_METHOD(value);
+    switch (bound->method->type) {
+    case OBJ_FUNCTION:
+      printFunction((ObjFunction *)bound->method);
+      break;
+    case OBJ_CLOSURE:
+      printClosure((ObjClosure *)bound->method);
+      break;
+    default:
+      printf("unknown bound method target!");
+      break;
+    }
+    break;
   case OBJ_CLASS:
     ObjClass *klass = AS_CLASS(value);
     printf("%.*s", klass->name->length, getCString(klass->name));
     break;
   case OBJ_CLOSURE:
-    printFunction(AS_CLOSURE(value)->function);
+    printClosure(AS_CLOSURE(value));
     break;
   case OBJ_FUNCTION:
     printFunction(AS_FUNCTION(value));
