@@ -877,26 +877,10 @@ static void dot(bool canAssign) {
   emitConstantReference(ref);
 }
 
-static void accessorUsingLiteral(bool canAssign) {
-  ConstRef ref = makeConstant(parseString(parser.current));
-
-  consume(TOKEN_STRING, "Expect property name when using an accessor.");
-  consume(TOKEN_RIGHT_SQBRA, "Expect ']' after accessor.");
-
-  if (canAssign && match(TOKEN_EQUAL)) {
-    expression();
-    emitOpOrOpLong(ref, OP_SET_PROP, OP_SET_PROP_LONG);
-  } else {
-    emitOpOrOpLong(ref, OP_GET_PROP, OP_GET_PROP_LONG);
-  }
-
-  emitConstantReference(ref);
-}
-
-static void accessorUsingIdentifier(bool canAssign) {
+static void accessor(bool canAssign) {
   expression();
 
-  consume(TOKEN_RIGHT_SQBRA, "Expect ']' after accessor.");
+  consume(TOKEN_RIGHT_SQBRA, "Expect ']' after accessor expression.");
 
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
@@ -904,15 +888,6 @@ static void accessorUsingIdentifier(bool canAssign) {
   } else {
     emitByte(OP_GET_PROP_STR);
   }
-}
-
-static void accessor(bool canAssign) {
-  if (check(TOKEN_STRING))
-    accessorUsingLiteral(canAssign);
-  else if (check(TOKEN_IDENTIFIER))
-    accessorUsingIdentifier(canAssign);
-  else
-    errorAtCurrent("Expect string literal or string variable inside accessor.");
 }
 
 static void literal(bool canAssign) {

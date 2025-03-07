@@ -15,3 +15,28 @@ var fielda = "sec";
 var fieldb = "ond";
 print pair[fielda + fieldb];
 
+fun f() {
+  return "sec";
+}
+
+fun g() {
+  return "ond";
+}
+
+print pair["sec" + "ond"];
+print pair[f() + "ond"];
+print pair["sec" + g()];
+print pair[f() + g()];
+
+
+pair["sec" + "ond"] = "baz1";
+print pair.second;
+
+pair[f() + "ond"] = "baz2";
+print pair.second;
+
+pair["sec" + g()] = "baz3";
+print pair.second;
+
+pair[f() + g()] = "bas4";
+print pair.second;
