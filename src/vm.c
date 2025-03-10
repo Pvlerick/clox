@@ -187,6 +187,16 @@ static bool callClosure(ObjClosure *closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
+    case OBJ_BOUND_METHOD:
+      ObjBoundMethod *bound = AS_BOUND_METHOD(callee);
+      switch (bound->method->type) {
+      case OBJ_FUNCTION:
+        return callFunction((ObjFunction *)bound->method, argCount);
+      case OBJ_CLOSURE:
+        return callClosure((ObjClosure *)bound->method, argCount);
+      default:
+        runtimeError("Unknown bound method type.");
+      }
     case OBJ_CLASS:
       ObjClass *klass = AS_CLASS(callee);
       vm.stack.top[-argCount - 1] = OBJ_VAL(newInstance(klass));
@@ -214,6 +224,19 @@ static bool callValue(Value callee, int argCount) {
 
   runtimeError("Can only call function and classes.");
   return false;
+}
+
+static bool bindMethod(ObjClass *klass, ObjString *name) {
+  Value method;
+  if (!tableGet(&klass->methods, name, &method)) {
+    return false;
+  }
+
+  ObjBoundMethod *bound = newBoundMethod(peek(0), AS_OBJ(method));
+
+  pop();
+  push(OBJ_VAL(bound));
+  return true;
 }
 
 static ObjUpvalue *captureUpvalue(int stackIndex) {
@@ -343,7 +366,7 @@ static InterpretResult run() {
       pop();
       if (tableGet(&inst_get_prop->fields, name_get_prop, &value_get_prop)) {
         push(value_get_prop);
-      } else {
+      } else if (!bindMethod(inst_get_prop->klass, name_get_prop)) {
         push(NIL_VAL);
       }
       break;

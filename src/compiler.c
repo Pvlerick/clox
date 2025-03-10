@@ -542,7 +542,6 @@ static void method() {
 static void namedVariable(Token name, bool canAssign);
 
 static void classDeclaration() {
-  // TODO Inspect the stack and globals because it seems cluttered in here
   Token className = parser.current;
   ConstRef nameConstant = identifierConstant(&className);
   VariableRef ref = parseVariable("Expected class name.");

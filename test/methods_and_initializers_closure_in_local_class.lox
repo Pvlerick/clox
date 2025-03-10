@@ -1,0 +1,15 @@
+fun f() {
+  var extra = "custard!";
+
+  class Scone {
+    topping(first, second) {
+      print "scone with " + first + " and " + second + " and " + extra;
+    }
+  }
+
+  var scone = Scone();
+  return scone.topping;
+}
+
+var a = f();
+a("berries", "cream");
