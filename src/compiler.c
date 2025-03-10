@@ -54,7 +54,7 @@ typedef struct {
   bool isLocal;
 } Upvalue;
 
-typedef enum { TYPE_FUNCTION, TYPE_SCRIPT } FunctionType;
+typedef enum { TYPE_FUNCTION, TYPE_METHOD, TYPE_SCRIPT } FunctionType;
 
 typedef struct {
   int capacity;
@@ -101,8 +101,13 @@ typedef struct Compiler {
   LocalArray locals;
 } Compiler;
 
+typedef struct ClassCompiler {
+  struct ClassCompiler *enclosing;
+} ClassCompiler;
+
 Parser parser;
 Compiler *current = nullptr;
+ClassCompiler *currentClass = nullptr;
 Chunk *compilingChunk;
 
 static Chunk *currentChunk() { return &current->function->chunk; }
@@ -269,8 +274,15 @@ static void initCompiler(Compiler *compiler, FunctionType type) {
   local.depth = 0;
   local.captured = false;
   local.readonly = true;
-  local.name.start = "";
-  local.name.length = 0;
+
+  if (type != TYPE_FUNCTION) {
+    local.name.start = "this";
+    local.name.length = 4;
+  } else {
+    local.name.start = "";
+    local.name.length = 0;
+  }
+
   writeLocalArray(&current->locals, local);
 }
 
@@ -533,7 +545,7 @@ static void method() {
 
   ConstRef ref = identifierConstant(&parser.previous);
 
-  function(TYPE_FUNCTION);
+  function(TYPE_METHOD);
 
   emitOpOrOpLong(ref, OP_METHOD, OP_METHOD_LONG);
   emitConstantReference(ref);
@@ -551,6 +563,10 @@ static void classDeclaration() {
 
   defineVariable(ref);
 
+  ClassCompiler classCompiler;
+  classCompiler.enclosing = currentClass;
+  currentClass = &classCompiler;
+
   namedVariable(className, false);
 
   consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
@@ -561,6 +577,8 @@ static void classDeclaration() {
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
 
   emitByte(OP_POP); // Pop the class from the stack
+
+  currentClass = currentClass->enclosing;
 }
 
 static void funDeclaration() {
@@ -1012,6 +1030,15 @@ static void variable(bool canAssign) {
   namedVariable(parser.previous, canAssign);
 }
 
+static void this_(bool canAssign) {
+  if (currentClass == nullptr) {
+    error("can't use 'this' outside of a class.");
+    return;
+  }
+
+  variable(false);
+}
+
 static void unary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
 
@@ -1066,7 +1093,7 @@ ParseRule rules[] = {
     [TOKEN_PRINT] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_RETURN] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_SUPER] = {nullptr, nullptr, PREC_NONE},
-    [TOKEN_THIS] = {nullptr, nullptr, PREC_NONE},
+    [TOKEN_THIS] = {this_, nullptr, PREC_NONE},
     [TOKEN_TRUE] = {literal, nullptr, PREC_NONE},
     [TOKEN_LET] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_VAR] = {nullptr, nullptr, PREC_NONE},
