@@ -1,13 +1,13 @@
-#include "memory.h"
+#include "mmm.h"
 #include "testing.h"
 #include <stdio.h>
 
 void testAllocateSimple() {
   printf("====== AllocateSimple\n");
 
-  void *ptr1 = memAlloc(42);  // 40 + 42 = 82
-  void *ptr2 = memAlloc(80);  // 40 + 80 = 120
-  void *ptr3 = memAlloc(100); // 40 + 100 = 140
+  void *ptr1 = __wrap_malloc(42);  // 40 + 42 = 82
+  void *ptr2 = __wrap_malloc(80);  // 40 + 80 = 120
+  void *ptr3 = __wrap_malloc(100); // 40 + 100 = 140
 
   dumpHeap();
 
@@ -18,8 +18,8 @@ void testAllocateSimple() {
 void testAllocateThenFree() {
   printf("====== AllocateThenFree\n");
 
-  void *ptr = memAlloc(100);
-  memFree(ptr);
+  void *ptr = __wrap_malloc(100);
+  __wrap_free(ptr);
 
   dumpHeap();
 }
@@ -27,21 +27,21 @@ void testAllocateThenFree() {
 void testAllocateThenFreeInvalid() {
   printf("====== AllocateThenFreeInvalid\n");
 
-  void *ptr = memAlloc(100);
-  memFree(ptr + 5);
+  void *ptr = __wrap_malloc(100);
+  __wrap_free(ptr + 5);
 }
 
 void testAllocateThenFreeThenAllocateSameSize() {
   printf("====== AllocateThenFreeThenAllocateSameSize\n");
 
-  void *ptr1 = memAlloc(42);
-  void *ptr2 = memAlloc(80);
-  void *ptr3 = memAlloc(100);
-  memFree(ptr2);
+  void *ptr1 = __wrap_malloc(42);
+  void *ptr2 = __wrap_malloc(80);
+  void *ptr3 = __wrap_malloc(100);
+  __wrap_free(ptr2);
 
   dumpHeap();
 
-  void *ptr4 = memAlloc(80);
+  void *ptr4 = __wrap_malloc(80);
 
   dumpHeap();
 }
@@ -49,15 +49,15 @@ void testAllocateThenFreeThenAllocateSameSize() {
 void testAllocateThenFreeThenAllocateSmaller() {
   printf("====== AllocateThenFreeThenAllocateSmaller\n");
 
-  void *ptr1 = memAlloc(42);
-  void *ptr2 = memAlloc(80);
-  void *ptr3 = memAlloc(100);
-  memFree(ptr2);
+  void *ptr1 = __wrap_malloc(42);
+  void *ptr2 = __wrap_malloc(80);
+  void *ptr3 = __wrap_malloc(100);
+  __wrap_free(ptr2);
 
   dumpHeap();
 
-  void *ptr4 = memAlloc(10);
-  void *ptr5 = memAlloc(29); // Will allocate a new block at the end
+  void *ptr4 = __wrap_malloc(10);
+  void *ptr5 = __wrap_malloc(29); // Will allocate a new block at the end
 
   dumpHeap();
 }
@@ -65,11 +65,11 @@ void testAllocateThenFreeThenAllocateSmaller() {
 void testAllocateThenFreeFirstTwo() {
   printf("====== AllocateThenFreeFirstOfTwo\n");
 
-  void *ptr1 = memAlloc(75);
-  void *ptr2 = memAlloc(150);
-  void *ptr3 = memAlloc(100);
-  memFree(ptr1);
-  memFree(ptr2);
+  void *ptr1 = __wrap_malloc(75);
+  void *ptr2 = __wrap_malloc(150);
+  void *ptr3 = __wrap_malloc(100);
+  __wrap_free(ptr1);
+  __wrap_free(ptr2);
 
   dumpHeap();
 }
@@ -77,11 +77,11 @@ void testAllocateThenFreeFirstTwo() {
 void testAllocateThenFreeSecondThenFirst() {
   printf("====== AllocateThenFreeSecondOfTwo\n");
 
-  void *ptr1 = memAlloc(30);
-  void *ptr2 = memAlloc(60);
-  void *ptr3 = memAlloc(100);
-  memFree(ptr2);
-  memFree(ptr1);
+  void *ptr1 = __wrap_malloc(30);
+  void *ptr2 = __wrap_malloc(60);
+  void *ptr3 = __wrap_malloc(100);
+  __wrap_free(ptr2);
+  __wrap_free(ptr1);
 
   dumpHeap();
 }
@@ -89,25 +89,25 @@ void testAllocateThenFreeSecondThenFirst() {
 void testAllocateThenFreeAll() {
   printf("====== AllocateThenFreeAll\n");
 
-  void *ptr1 = memAlloc(30);
-  void *ptr2 = memAlloc(60);
-  void *ptr3 = memAlloc(100);
-  void *ptr4 = memAlloc(200);
-  void *ptr5 = memAlloc(400);
+  void *ptr1 = __wrap_malloc(30);
+  void *ptr2 = __wrap_malloc(60);
+  void *ptr3 = __wrap_malloc(100);
+  void *ptr4 = __wrap_malloc(200);
+  void *ptr5 = __wrap_malloc(400);
 
   dumpHeap();
 
-  memFree(ptr1);
-  memFree(ptr2);
+  __wrap_free(ptr1);
+  __wrap_free(ptr2);
 
   dumpHeap();
 
-  memFree(ptr3);
-  memFree(ptr4);
+  __wrap_free(ptr3);
+  __wrap_free(ptr4);
 
   dumpHeap();
 
-  memFree(ptr5);
+  __wrap_free(ptr5);
 
   dumpHeap();
 }
@@ -115,11 +115,11 @@ void testAllocateThenFreeAll() {
 void testReallocateSimple() {
   printf("====== ReallocateSimple\n");
 
-  void *ptr = memAlloc(100);
+  void *ptr = __wrap_malloc(100);
 
   dumpHeap();
 
-  memRealloc(ptr, 200);
+  __wrap_realloc(ptr, 200);
 
   dumpHeap();
 }
@@ -127,15 +127,15 @@ void testReallocateSimple() {
 void testReallocateOnlyOneByteOnTop() {
   printf("====== ReallocateOnlyOneByteOnTop\n");
 
-  void *ptr1 = memAlloc(100);
-  void *ptr2 = memAlloc(101);
-  void *ptr3 = memAlloc(50);
+  void *ptr1 = __wrap_malloc(100);
+  void *ptr2 = __wrap_malloc(101);
+  void *ptr3 = __wrap_malloc(50);
 
-  memFree(ptr2);
+  __wrap_free(ptr2);
 
   dumpHeap();
 
-  memRealloc(ptr1, 200);
+  __wrap_realloc(ptr1, 200);
 
   dumpHeap();
 }
@@ -143,12 +143,12 @@ void testReallocateOnlyOneByteOnTop() {
 void testReallocateNextBlockHasExactlyTheRightSize() {
   printf("====== ReallocateNextBlockHasExactlyTheRightSize\n");
 
-  void *ptr1 = memAlloc(100);
-  void *ptr2 = memAlloc(60);
-  void *ptr3 = memAlloc(50);
+  void *ptr1 = __wrap_malloc(100);
+  void *ptr2 = __wrap_malloc(60);
+  void *ptr3 = __wrap_malloc(50);
 
-  memFree(ptr2);
-  memRealloc(ptr1, 200);
+  __wrap_free(ptr2);
+  __wrap_realloc(ptr1, 200);
 
   dumpHeap();
 }
@@ -156,12 +156,12 @@ void testReallocateNextBlockHasExactlyTheRightSize() {
 void testReallocateNextIsFreeButTooSmall() {
   printf("====== ReallocateNextIsFreeButTooSmall\n");
 
-  void *ptr1 = memAlloc(100);
-  void *ptr2 = memAlloc(59);
-  void *ptr3 = memAlloc(50);
+  void *ptr1 = __wrap_malloc(100);
+  void *ptr2 = __wrap_malloc(59);
+  void *ptr3 = __wrap_malloc(50);
 
-  memFree(ptr2);
-  void *ptr4 = memRealloc(ptr1, 200);
+  __wrap_free(ptr2);
+  void *ptr4 = __wrap_realloc(ptr1, 200);
 
   dumpHeap();
 
@@ -171,10 +171,10 @@ void testReallocateNextIsFreeButTooSmall() {
 void testReallocateNextIsNotFree() {
   printf("====== ReallocateNextIsNotFree\n");
 
-  void *ptr1 = memAlloc(200);
-  void *ptr2 = memAlloc(40);
+  void *ptr1 = __wrap_malloc(200);
+  void *ptr2 = __wrap_malloc(40);
 
-  void *ptr3 = memRealloc(ptr1, 300);
+  void *ptr3 = __wrap_realloc(ptr1, 300);
 
   dumpHeap();
 
@@ -184,16 +184,16 @@ void testReallocateNextIsNotFree() {
 void testReallocateWayTooMuch() {
   printf("====== ReallocateWayTooMuch\n");
 
-  void *ptr = memAlloc(100);
+  void *ptr = __wrap_malloc(100);
 
-  memRealloc(ptr, 500000);
+  __wrap_realloc(ptr, 500000);
 }
 
 void testReallocateSameSize() {
   printf("====== ReallocateSameSize\n");
 
-  void *ptr1 = memAlloc(200);
-  void *ptr2 = memRealloc(ptr1, 200);
+  void *ptr1 = __wrap_malloc(200);
+  void *ptr2 = __wrap_realloc(ptr1, 200);
 
   ASSERT_EQ_PTR(ptr1, ptr2);
 }
@@ -201,8 +201,8 @@ void testReallocateSameSize() {
 void testReallocateSmaller() {
   printf("====== ReallocateSmaller\n");
 
-  void *ptr1 = memAlloc(200);
-  void *ptr2 = memRealloc(ptr1, 100);
+  void *ptr1 = __wrap_malloc(200);
+  void *ptr2 = __wrap_realloc(ptr1, 100);
 
   dumpHeap();
 
@@ -212,9 +212,9 @@ void testReallocateSmaller() {
 void testReallocateFreedIsTooSmall() {
   printf("====== ReallocateFreedIsTooSmall\n");
 
-  void *ptr1 = memAlloc(200);
-  void *ptr2 = memAlloc(50);
-  void *ptr3 = memRealloc(ptr1, 160);
+  void *ptr1 = __wrap_malloc(200);
+  void *ptr2 = __wrap_malloc(50);
+  void *ptr3 = __wrap_realloc(ptr1, 160);
 
   dumpHeap();
 
@@ -224,9 +224,9 @@ void testReallocateFreedIsTooSmall() {
 void testReallocateEnoughForNewBlockAfter() {
   printf("====== ReallocateEnoughForNewBlockAfter\n");
 
-  void *ptr1 = memAlloc(200);
-  void *ptr2 = memAlloc(50);
-  void *ptr3 = memRealloc(ptr1, 100);
+  void *ptr1 = __wrap_malloc(200);
+  void *ptr2 = __wrap_malloc(50);
+  void *ptr3 = __wrap_realloc(ptr1, 100);
 
   dumpHeap();
 
@@ -236,32 +236,32 @@ void testReallocateEnoughForNewBlockAfter() {
 void testCustom() {
   printf("====== Custom\n");
 
-  void *ptr1 = memAlloc(64);
-  void *ptr2 = memAlloc(8);
-  void *ptr3 = memAlloc(96);
-  ptr2 = memRealloc(ptr2, 16);
-  ptr1 = memRealloc(ptr1, 128);
-  ptr2 = memRealloc(ptr2, 32);
-  ptr3 = memRealloc(ptr3, 192);
-  ptr1 = memRealloc(ptr1, 256);
-  ptr2 = memRealloc(ptr2, 64);
-  ptr3 = memRealloc(ptr3, 384);
-  ptr1 = memRealloc(ptr1, 512);
-  ptr2 = memRealloc(ptr2, 128);
-  ptr3 = memRealloc(ptr3, 768);
-  ptr1 = memRealloc(ptr1, 1024);
-  ptr2 = memRealloc(ptr2, 256);
-  ptr3 = memRealloc(ptr3, 1536);
-  ptr1 = memRealloc(ptr1, 2048);
-  ptr3 = memRealloc(ptr3, 3072);
-  ptr1 = memRealloc(ptr1, 4096);
+  void *ptr1 = __wrap_malloc(64);
+  void *ptr2 = __wrap_malloc(8);
+  void *ptr3 = __wrap_malloc(96);
+  ptr2 = __wrap_realloc(ptr2, 16);
+  ptr1 = __wrap_realloc(ptr1, 128);
+  ptr2 = __wrap_realloc(ptr2, 32);
+  ptr3 = __wrap_realloc(ptr3, 192);
+  ptr1 = __wrap_realloc(ptr1, 256);
+  ptr2 = __wrap_realloc(ptr2, 64);
+  ptr3 = __wrap_realloc(ptr3, 384);
+  ptr1 = __wrap_realloc(ptr1, 512);
+  ptr2 = __wrap_realloc(ptr2, 128);
+  ptr3 = __wrap_realloc(ptr3, 768);
+  ptr1 = __wrap_realloc(ptr1, 1024);
+  ptr2 = __wrap_realloc(ptr2, 256);
+  ptr3 = __wrap_realloc(ptr3, 1536);
+  ptr1 = __wrap_realloc(ptr1, 2048);
+  ptr3 = __wrap_realloc(ptr3, 3072);
+  ptr1 = __wrap_realloc(ptr1, 4096);
 
   // dumpHeap();
   checkHeapIntegrity();
 
-  memFree(ptr1);
-  memFree(ptr2);
-  memFree(ptr3);
+  __wrap_free(ptr1);
+  __wrap_free(ptr2);
+  __wrap_free(ptr3);
 
   // dumpHeap();
 }
@@ -269,7 +269,7 @@ void testCustom() {
 int main() {
   printf("Testing Manual Memory Management\n");
 
-  // testAllocateSimple();
+  testAllocateSimple();
   // testAllocateThenFree();
   // testAllocateThenFreeInvalid();
   // testAllocateThenFree();
