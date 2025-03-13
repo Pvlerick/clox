@@ -46,6 +46,24 @@ test-table:
 	gcc $(flags) -o test-table src/table_tests.c $(objects) -lm
 	./test-table
 
+test-all:
+	$(MAKE) clean
+	$(MAKE) build
+	for file in test/*.lox; do \
+		if [ -f "$$file" ]; then \
+			echo -n "Running test $$file... "; \
+			{ ./clox $$file > /dev/null && echo "ok"; } \
+			|| { echo "failed"; exit 1; }; \
+		fi; \
+	done
+	for file in test/*.xol; do \
+		if [ -f "$$file" ]; then \
+			echo -n "Running negative test $$file... "; \
+			{ ./clox $$file > /dev/null 2>&1 || echo "ok"; } \
+			|| { echo "failed"; exit 1; }; \
+		fi; \
+	done
+
 run-nommm:
 	$(MAKE) clean
 	$(MAKE) build-nommm
