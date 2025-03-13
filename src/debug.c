@@ -241,6 +241,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return constantInstruction("OP_METHOD", chunk, offset);
   case OP_METHOD_LONG:
     return longConstantInstruction("OP_METHOD_LONG", chunk, offset);
+  case OP_INIT:
+    return constantInstruction("OP_INIT", chunk, offset);
   default:
     debug("Unknown opcode %d\n", instruction);
     return offset + 1;

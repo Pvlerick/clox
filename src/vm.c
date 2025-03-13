@@ -210,9 +210,8 @@ static bool callValue(Value callee, int argCount) {
     case OBJ_CLASS:
       ObjClass *klass = AS_CLASS(callee);
       vm.stack.top[-argCount - 1] = OBJ_VAL(newInstance(klass));
-      Value initializer;
-      if (tableGet(&klass->methods, vm.initString, &initializer)) {
-        return call(AS_OBJ(initializer), argCount);
+      if (klass->init != nullptr) {
+        return call(klass->init, argCount);
       } else if (argCount != 0) {
         runtimeError("Expect 0 arguments but got %d.", argCount);
         return false;
@@ -317,6 +316,13 @@ static void defineMethod(ObjString *name) {
   Value method = peek(0);
   ObjClass *klass = AS_CLASS(peek(1));
   tableSet(&klass->methods, name, method);
+  pop();
+}
+
+static void defineInit() {
+  Value init = peek(0);
+  ObjClass *klass = AS_CLASS(peek(1));
+  klass->init = AS_OBJ(init);
   pop();
 }
 
@@ -672,6 +678,9 @@ static InterpretResult run() {
       break;
     case OP_METHOD_LONG:
       defineMethod(READ_STRING_LONG());
+      break;
+    case OP_INIT:
+      defineInit();
       break;
 
 #undef BINARY_OP

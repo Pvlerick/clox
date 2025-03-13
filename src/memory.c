@@ -93,6 +93,7 @@ static void blackenObject(Obj *obj) {
   case OBJ_CLASS:
     ObjClass *klass = (ObjClass *)obj;
     MARK((Obj *)klass->name);
+    markObject(klass->init);
     markTable(&klass->methods);
     break;
   case OBJ_CLOSURE:

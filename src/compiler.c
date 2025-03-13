@@ -553,20 +553,17 @@ static void function(FunctionType type) {
 static void method() {
   consume(TOKEN_IDENTIFIER, "Expect method name.");
 
-  ConstRef ref = identifierConstant(&parser.previous);
-
-  FunctionType type = TYPE_METHOD;
-
   if (parser.previous.length == vm.initString->length &&
       memcmp(parser.previous.start, getCString(vm.initString),
              vm.initString->length) == 0) {
-    type = TYPE_INITIALIZER;
+    function(TYPE_INITIALIZER);
+    emitByte(OP_INIT);
+  } else {
+    ConstRef ref = identifierConstant(&parser.previous);
+    function(TYPE_METHOD);
+    emitOpOrOpLong(ref, OP_METHOD, OP_METHOD_LONG);
+    emitConstantReference(ref);
   }
-
-  function(type);
-
-  emitOpOrOpLong(ref, OP_METHOD, OP_METHOD_LONG);
-  emitConstantReference(ref);
 }
 
 static void namedVariable(Token name, bool canAssign);

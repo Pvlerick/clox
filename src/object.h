@@ -91,6 +91,7 @@ typedef struct {
   Obj obj;
   ObjString *name;
   Table methods;
+  Obj *init;
 } ObjClass;
 
 typedef struct {
