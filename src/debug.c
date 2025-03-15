@@ -243,6 +243,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return longConstantInstruction("OP_METHOD_LONG", chunk, offset);
   case OP_INIT:
     return constantInstruction("OP_INIT", chunk, offset);
+  case OP_INHERIT:
+    return simpleInstruction("OP_INHERIT", offset);
   default:
     debug("Unknown opcode %d\n", instruction);
     return offset + 1;
