@@ -567,6 +567,7 @@ static void method() {
 }
 
 static void namedVariable(Token name, bool canAssign);
+static void variable(bool canAssign);
 
 static void classDeclaration() {
   Token className = parser.current;
@@ -581,6 +582,17 @@ static void classDeclaration() {
   ClassCompiler classCompiler;
   classCompiler.enclosing = currentClass;
   currentClass = &classCompiler;
+
+  if (match(TOKEN_LESS)) {
+    consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+    variable(false);
+    namedVariable(className, false);
+
+    if (identifiersEqual(&className, &parser.previous))
+      error("A class can't inherit from itself.");
+
+    emitByte(OP_INHERIT);
+  }
 
   namedVariable(className, false);
 
