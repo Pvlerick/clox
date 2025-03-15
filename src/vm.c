@@ -366,6 +366,7 @@ static InterpretResult run() {
 #define BINARY_OP(valueType, op)                                               \
   do {                                                                         \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                          \
+      frame->ip = ip;                                                          \
       runtimeError("Operand must be numbers.");                                \
       return INTERPRET_RUNTIME_ERROR;                                          \
     }                                                                          \
@@ -409,145 +410,163 @@ static InterpretResult run() {
       push(BOOL_VAL(false));
       break;
     case OP_GET_PROP:
-    case OP_GET_PROP_LONG:
+    case OP_GET_PROP_LONG: {
       if (!IS_INSTANCE(peek(0))) {
         frame->ip = ip;
         runtimeError("Only instances have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      ObjInstance *inst_get_prop = AS_INSTANCE(peek(0));
-      ObjString *name_get_prop =
+      ObjInstance *instance = AS_INSTANCE(peek(0));
+      ObjString *name =
           instruction == OP_GET_PROP ? READ_STRING() : READ_STRING_LONG();
-      Value value_get_prop;
-      if (tableGet(&inst_get_prop->fields, name_get_prop, &value_get_prop)) {
+      Value value;
+      if (tableGet(&instance->fields, name, &value)) {
         pop();
-        push(value_get_prop);
-      } else if (!bindMethod(inst_get_prop->klass, name_get_prop)) {
+        push(value);
+      } else if (!bindMethod(instance->klass, name)) {
         push(NIL_VAL);
       }
       break;
-    case OP_GET_PROP_STR:
+    }
+    case OP_GET_PROP_STR: {
       if (!IS_INSTANCE(peek(1))) {
         frame->ip = ip;
         runtimeError("Only instances have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      ObjInstance *inst_get_prop_str = AS_INSTANCE(peek(1));
-      ObjString *name_get_prop_str = AS_STRING(pop());
-      Value value_get_prop_str;
+      ObjInstance *instance = AS_INSTANCE(peek(1));
+      ObjString *name = AS_STRING(pop());
+      Value value;
       pop();
-      if (tableGet(&inst_get_prop_str->fields, name_get_prop_str,
-                   &value_get_prop_str)) {
-        push(value_get_prop_str);
+      if (tableGet(&instance->fields, name, &value)) {
+        push(value);
       } else {
         push(NIL_VAL);
       }
       break;
+    }
     case OP_SET_PROP:
-    case OP_SET_PROP_LONG:
+    case OP_SET_PROP_LONG: {
       if (!IS_INSTANCE(peek(1))) {
         frame->ip = ip;
         runtimeError("Only instances have fields.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      ObjInstance *inst_set_prop = AS_INSTANCE(peek(1));
-      ObjString *name_set_prop =
+      ObjInstance *instance = AS_INSTANCE(peek(1));
+      ObjString *name =
           instruction == OP_SET_PROP ? READ_STRING() : READ_STRING_LONG();
-      // tableDump(&inst_set_prop->fields);
       if (!IS_NIL(peek(0))) {
-        tableSet(&inst_set_prop->fields, name_set_prop, peek(0));
+        tableSet(&instance->fields, name, peek(0));
       } else {
-        tableDelete(&inst_get_prop->fields, name_set_prop);
+        tableDelete(&instance->fields, name);
       }
-      Value value_set_prop = pop();
+      Value value = pop();
       pop();
-      push(value_set_prop);
-      // tableDump(&inst_set_prop->fields);
+      push(value);
       break;
-    case OP_SET_PROP_STR:
+    }
+    case OP_SET_PROP_STR: {
       if (!IS_INSTANCE(peek(2))) {
         frame->ip = ip;
         runtimeError("Only instances have fields.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      ObjInstance *inst_set_prop_str = AS_INSTANCE(peek(2));
-      ObjString *name_set_prop_str = AS_STRING(peek(1));
+      ObjInstance *instance = AS_INSTANCE(peek(2));
+      ObjString *name = AS_STRING(peek(1));
       if (!IS_NIL(peek(0))) {
-        tableSet(&inst_set_prop_str->fields, name_set_prop_str, peek(0));
+        tableSet(&instance->fields, name, peek(0));
       } else {
-        tableDelete(&inst_set_prop_str->fields, name_set_prop_str);
+        tableDelete(&instance->fields, name);
       }
       Value value_set_prop_str = pop();
       pop();
       pop();
       push(value_set_prop_str);
       break;
-    case OP_EQUAL:
-      Value a_eq = pop();
-      Value b_eq = pop();
-      push(BOOL_VAL(valuesEqual(a_eq, b_eq)));
+    }
+    case OP_GET_SUPER:
+    case OP_GET_SUPER_LONG: {
+      ObjString *name =
+          instruction == OP_GET_SUPER ? READ_STRING() : READ_STRING_LONG();
+      ObjClass *superclass = AS_CLASS(pop());
+      if (!bindMethod(superclass, name))
+        return INTERPRET_RUNTIME_ERROR;
       break;
-    case OP_CMP:
-      Value a_cmp = pop();
-      push(BOOL_VAL(valuesEqual(a_cmp, peek(0))));
+    }
+    case OP_EQUAL: {
+      Value a = pop();
+      Value b = pop();
+      push(BOOL_VAL(valuesEqual(a, b)));
       break;
+    }
+    case OP_CMP: {
+      Value a = pop();
+      push(BOOL_VAL(valuesEqual(a, peek(0))));
+      break;
+    }
     case OP_POP:
       pop();
       break;
-    case OP_GET_LOCAL:
-      uint8_t slot_get = READ_BYTE();
-      push(stackGet(&vm.stack, frame->stackIndex + slot_get));
+    case OP_GET_LOCAL: {
+      uint8_t slot = READ_BYTE();
+      push(stackGet(&vm.stack, frame->stackIndex + slot));
       break;
-    case OP_SET_LOCAL:
-      uint8_t slot_set = READ_BYTE();
-      stackSet(&vm.stack, frame->stackIndex + slot_set, peek(0));
+    }
+    case OP_SET_LOCAL: {
+      uint8_t slot = READ_BYTE();
+      stackSet(&vm.stack, frame->stackIndex + slot, peek(0));
       break;
+    }
     case OP_GET_GLOBAL:
-    case OP_GET_GLOBAL_LONG:
-      ObjString *name_get =
+    case OP_GET_GLOBAL_LONG: {
+      ObjString *name =
           instruction == OP_GET_GLOBAL ? READ_STRING() : READ_STRING_LONG();
-      Value value_get;
-      if (!tableGet(&vm.globals, name_get, &value_get)) {
+      Value value;
+      if (!tableGet(&vm.globals, name, &value)) {
         frame->ip = ip;
-        runtimeError("Undefined variable '%.*s'.", name_get->length,
-                     getCString(name_get));
+        runtimeError("Undefined variable '%.*s'.", name->length,
+                     getCString(name));
         return INTERPRET_RUNTIME_ERROR;
       }
-      push(value_get);
+      push(value);
       break;
+    }
     case OP_DEFINE_GLOBAL:
-    case OP_DEFINE_GLOBAL_LONG:
-      ObjString *name_define =
+    case OP_DEFINE_GLOBAL_LONG: {
+      ObjString *name =
           instruction == OP_DEFINE_GLOBAL ? READ_STRING() : READ_STRING_LONG();
-      tableSet(&vm.globals, name_define, peek(0));
+      tableSet(&vm.globals, name, peek(0));
       pop();
       break;
+    }
     case OP_SET_GLOBAL:
-    case OP_SET_GLOBAL_LONG:
-      ObjString *name_set =
+    case OP_SET_GLOBAL_LONG: {
+      ObjString *name =
           instruction == OP_SET_GLOBAL ? READ_STRING() : READ_STRING_LONG();
-      if (tableSet(&vm.globals, name_set, peek(0))) {
-        tableDelete(&vm.globals, name_set);
+      if (tableSet(&vm.globals, name, peek(0))) {
+        tableDelete(&vm.globals, name);
         frame->ip = ip;
-        runtimeError("Undefined variable '%.*s'.", name_set->length,
-                     getCString(name_set));
+        runtimeError("Undefined variable '%.*s'.", name->length,
+                     getCString(name));
         return INTERPRET_RUNTIME_ERROR;
       }
       break;
-    case OP_GET_UPVALUE:
-      uint8_t get_upvalue_slot = READ_BYTE();
-      ObjUpvalue *upvalue = frame->as.closure->upvalues[get_upvalue_slot];
+    }
+    case OP_GET_UPVALUE: {
+      uint8_t slot = READ_BYTE();
+      ObjUpvalue *upvalue = frame->as.closure->upvalues[slot];
       if (upvalue->stackIndex != -1) {
         push(vm.stack.values[upvalue->stackIndex]);
       } else {
         push(upvalue->closed);
       }
       break;
-    case OP_SET_UPVALUE:
-      uint8_t set_upvalue_slot = READ_BYTE();
-      frame->as.closure->upvalues[set_upvalue_slot]->stackIndex =
-          vm.stack.count - 1;
+    }
+    case OP_SET_UPVALUE: {
+      uint8_t slot = READ_BYTE();
+      frame->as.closure->upvalues[slot]->stackIndex = vm.stack.count - 1;
       break;
+    }
     case OP_GREATER:
       BINARY_OP(BOOL_VAL, >);
       break;
@@ -614,17 +633,31 @@ static InterpretResult run() {
       ip = frame->ip;
       break;
     case OP_INVOKE:
-    case OP_INVOKE_LONG:
-      ObjString *invoke_method =
+    case OP_INVOKE_LONG: {
+      ObjString *method =
           instruction == OP_INVOKE ? READ_STRING() : READ_STRING_LONG();
-      int invoke_argCount = READ_BYTE();
-      if (!invoke(invoke_method, invoke_argCount))
+      int argCout = READ_BYTE();
+      if (!invoke(method, argCout))
         return INTERPRET_RUNTIME_ERROR;
       frame->ip = ip;
       frame = &vm.frames[vm.frameCount - 1];
       ip = frame->ip;
       break;
-    case OP_CLOSURE:
+    }
+    case OP_SUPER_INVOKE:
+    case OP_SUPER_INVOKE_LONG: {
+      ObjString *method =
+          instruction == OP_SUPER_INVOKE ? READ_STRING() : READ_STRING_LONG();
+      int argCount = READ_BYTE();
+      ObjClass *superclass = AS_CLASS(pop());
+      if (!invokeFromClass(superclass, method, argCount))
+        return INTERPRET_RUNTIME_ERROR;
+      frame->ip = ip;
+      frame = &vm.frames[vm.frameCount - 1];
+      ip = frame->ip;
+      break;
+    }
+    case OP_CLOSURE: {
       ObjFunction *fun = AS_FUNCTION(READ_CONSTANT());
       ObjClosure *closure = newClosure(fun);
       push(OBJ_VAL(closure));
@@ -638,10 +671,11 @@ static InterpretResult run() {
         }
       }
       break;
-    case OP_CLOSURE_LONG:
-      ObjFunction *fun_long = AS_FUNCTION(READ_LONG_CONSTANT());
-      ObjClosure *closure_long = newClosure(fun_long);
-      push(OBJ_VAL(closure_long));
+    }
+    case OP_CLOSURE_LONG: {
+      ObjFunction *fun = AS_FUNCTION(READ_LONG_CONSTANT());
+      ObjClosure *closure = newClosure(fun);
+      push(OBJ_VAL(closure));
       for (int i = 0; i < closure->upvalueCount; i++) {
         uint8_t isLocal = READ_BYTE();
         uint8_t index = READ_BYTE();
@@ -652,6 +686,7 @@ static InterpretResult run() {
         }
       }
       break;
+    }
     case OP_CLOSE_UPVALUE:
       closeUpvalue(vm.stack.count - 1);
       pop();
@@ -682,6 +717,18 @@ static InterpretResult run() {
     case OP_CLASS_LONG:
       push(OBJ_VAL(newClass(READ_STRING_LONG())));
       break;
+    case OP_INHERIT: {
+      Value superclass = peek(1);
+      if (!IS_CLASS(superclass)) {
+        frame->ip = ip;
+        runtimeError("Superclass must be a class.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      ObjClass *sublcass = AS_CLASS(peek(0));
+      tableAddAll(&AS_CLASS(superclass)->methods, &sublcass->methods);
+      pop();
+      break;
+    }
     case OP_METHOD:
       defineMethod(READ_STRING());
       break;

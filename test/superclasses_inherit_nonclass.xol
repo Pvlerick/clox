@@ -1,0 +1,5 @@
+var NotClass = "So not a class!";
+
+class OhNo < NotClass {
+}
+

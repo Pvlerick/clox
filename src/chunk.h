@@ -28,6 +28,8 @@ typedef enum {
   OP_SET_PROP,
   OP_SET_PROP_LONG,
   OP_SET_PROP_STR,
+  OP_GET_SUPER,
+  OP_GET_SUPER_LONG,
   OP_EQUAL,
   OP_CMP,
   OP_GREATER,
@@ -45,6 +47,8 @@ typedef enum {
   OP_CALL,
   OP_INVOKE,
   OP_INVOKE_LONG,
+  OP_SUPER_INVOKE,
+  OP_SUPER_INVOKE_LONG,
   OP_CLOSURE,
   OP_CLOSURE_LONG,
   OP_CLOSE_UPVALUE,
@@ -54,6 +58,7 @@ typedef enum {
   OP_METHOD,
   OP_METHOD_LONG,
   OP_INIT,
+  OP_INHERIT,
 } OpCode;
 
 typedef struct {
