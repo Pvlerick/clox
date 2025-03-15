@@ -72,6 +72,14 @@ static Value randNative(int argCout, Value *args) {
   return NUMBER_VAL(rand() % upper + lower);
 }
 
+static Value exitNative(int argCout, Value *args) {
+  if (!IS_NUMBER(*args)) {
+    runtimeError("argument to 'exit' must be an integer.");
+  }
+
+  exit((int)round(AS_NUMBER(*args)));
+}
+
 void initVM() {
   initStack(&vm.stack);
   vm.objects = nullptr;
@@ -92,6 +100,7 @@ void initVM() {
   defineNative("clock", clockNative, 0);
   defineNative("env", envNative, 1);
   defineNative("rand", randNative, 2);
+  defineNative("exit", exitNative, 1);
 }
 
 void freeVM() {

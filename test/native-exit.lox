@@ -1,0 +1,5 @@
+var a = "test";
+
+if (a == "test") {
+  exit(0);
+}
