@@ -39,7 +39,7 @@ trace:
 
 test-mmm:
 	$(MAKE) clean
-	gcc $(flags) $(mmm_linker_options) -D DEBUG -o test-mmm src/test_mmm.c $(objects) -lm
+	gcc $(flags) $(mmm_linker_options) $(trace_flags) -o test-mmm src/mmm_tests.c $(objects) -lm
 	./test-mmm
 
 test-table:

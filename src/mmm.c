@@ -103,7 +103,7 @@ void *__wrap_malloc(size_t size) {
   size_t alignedSize = ALIGN_TO_WORD_SIZE(size);
 
   trace("MEM: allocation request for %zu bytes, aligned size is %zu bytes\n",
-        alignedSize, size);
+        size, alignedSize);
 
   HeapBlock *firstSuitable = heap.first;
   while ((firstSuitable != nullptr) &&

@@ -5,14 +5,15 @@
 void testAllocateSimple() {
   printf("====== AllocateSimple\n");
 
-  void *ptr1 = __wrap_malloc(42);  // 40 + 42 = 82
-  void *ptr2 = __wrap_malloc(80);  // 40 + 80 = 120
-  void *ptr3 = __wrap_malloc(100); // 40 + 100 = 140
+  void *ptr1 = __wrap_malloc(42); // 0 + 40 + 48 (42 aligned to word size) = 88
+  void *ptr2 = __wrap_malloc(80); // 82 + 40 + 80 = 204
+  void *ptr3 =
+      __wrap_malloc(100); // 204 + 40 + 104 (100 aligned to word size) = 348
 
   dumpHeap();
 
-  ASSERT_EQ_PTR(ptr2, ptr1 + 82);
-  ASSERT_EQ_PTR(ptr3, ptr1 + 202);
+  ASSERT_EQ_PTR(ptr2, ptr1 + 88);
+  ASSERT_EQ_PTR(ptr3, ptr1 + 88 + 120);
 }
 
 void testAllocateThenFree() {
@@ -270,7 +271,7 @@ int main() {
   printf("Testing Manual Memory Management\n");
 
   testAllocateSimple();
-  // testAllocateThenFree();
+  testAllocateThenFree();
   // testAllocateThenFreeInvalid();
   // testAllocateThenFree();
   // testAllocateThenFreeThenAllocateSameSize();
