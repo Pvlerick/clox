@@ -178,11 +178,6 @@ ObjString *borrowString(const char *chars, int length) {
   return string;
 }
 
-// TODO inline
-const char *getCString(ObjString *string) {
-  return string->isBorrowed ? *(char **)string->content : string->content;
-}
-
 const char *copyString(ObjString *string) {
   char *loc = (char *)malloc(string->length + 1);
   memcpy(loc, getCString(string), string->length);
