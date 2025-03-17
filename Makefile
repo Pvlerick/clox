@@ -1,7 +1,7 @@
 .PHONY: build build-debug build-trace build-nommm clean run debug trace test-mmm test-table run-nommm
 
 main = src/main.c
-objects = src/chunk.c src/debug.c src/line.c src/memory.c src/value.c src/vm.c src/stack.c src/compiler.c src/scanner.c src/object.c src/table.c src/mmm.c
+objects = src/chunk.c src/debug.c src/line.c src/memory.c src/value.c src/vm.c src/stack.c src/compiler.c src/scanner.c src/object.c src/table.c src/mmm.c src/utils.c
 flags = -std=c2x
 debug_flags = -D DEBUG -D DEBUG_TRACE_EXECUTION -D DEBUG_PRINT_CODE -D DEBUG_STRESS_GC 
 trace_flags = -D DEBUG -D TRACE -D DEBUG_TRACE_MEMORY -D DEBUG_TRACE_EXECUTION -D DEBUG_PRINT_CODE -D DEBUG_STRESS_GC -D DEBUG_LOG_GC
