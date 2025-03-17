@@ -57,8 +57,8 @@ typedef struct {
 
 struct ObjFunction {
   Obj obj;
-  int arity;
-  int upvalueCount;
+  uint32_t arity;
+  uint32_t upvalueCount;
   Chunk chunk;
   ObjString *name;
 };
@@ -67,7 +67,7 @@ struct ObjFunction {
 // This would be better with a union, but that's an extension of GCC that's not in the mainline yet
 struct ObjString {
   Obj obj;
-  int length;
+  uint32_t length;
   uint32_t hash;
   bool isBorrowed;
   char content[];

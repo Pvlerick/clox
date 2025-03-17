@@ -2,6 +2,7 @@
 #define clox_value_h
 
 #include "common.h"
+#include <stdint.h>
 
 typedef struct Obj Obj;
 typedef struct ObjFunction ObjFunction;
@@ -38,8 +39,8 @@ typedef struct {
 #define OBJ_VAL(value) ((Value){VAL_OBJ, {.obj = (Obj*)value}})
 
 typedef struct {
-  int capacity;
-  int count;
+  uint32_t capacity;
+  uint32_t count;
   Value* values;
 } ValueArray;
 

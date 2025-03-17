@@ -1,15 +1,16 @@
 #ifndef clox_line_h
 #define clox_line_h
 
+#include <stdint.h>
 typedef struct {
-  int line;
-  int offsetStart;
-  int offsetEnd;
+  uint32_t line;
+  uint32_t offsetStart;
+  uint32_t offsetEnd;
 } LineItem; 
 
 typedef struct {
-  int count;
-  int capacity;
+  uint32_t count;
+  uint32_t capacity;
   LineItem* items;
 } LineArray;
 
