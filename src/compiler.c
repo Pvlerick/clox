@@ -108,6 +108,7 @@ typedef struct Compiler {
 
 typedef struct ClassCompiler {
   struct ClassCompiler *enclosing;
+  bool hasSuperclass;
 } ClassCompiler;
 
 Parser parser;
@@ -215,42 +216,29 @@ static ConstRef makeConstant(Value value) {
   return addConstant(currentChunk(), value);
 }
 
-static void emitConstantReference(ConstRef ref) {
+static void emitOpAndConstant(ConstRef ref, uint8_t opIfByte,
+                              uint8_t opIfLong) {
   switch (ref.type) {
   case CONST:
-    emitByte(ref.as.constant);
+    emitBytes(opIfByte, ref.as.constant);
     break;
   case CONST_LONG:
+    emitByte(opIfLong);
     uint8_t *addr = (uint8_t *)&ref.as.longConstant;
-    emitByte(*(addr + 1));
-    emitByte(*addr);
-    break;
-  }
-}
-
-static void emitOpOrOpLong(ConstRef ref, uint8_t byteIfConst,
-                           uint8_t byteIfConstLong) {
-  switch (ref.type) {
-  case CONST:
-    emitByte(byteIfConst);
-    break;
-  case CONST_LONG:
-    emitByte(byteIfConstLong);
+    emitBytes(*(addr + 1), *addr);
     break;
   }
 }
 
 static ConstRef emitConstant(Value value) {
   ConstRef ref = makeConstant(value);
-  emitOpOrOpLong(ref, OP_CONSTANT, OP_CONSTANT_LONG);
-  emitConstantReference(ref);
+  emitOpAndConstant(ref, OP_CONSTANT, OP_CONSTANT_LONG);
   return ref;
 }
 
 static void emitClosure(Value value) {
   ConstRef ref = makeConstant(value);
-  emitOpOrOpLong(ref, OP_CLOSURE, OP_CLOSURE_LONG);
-  emitConstantReference(ref);
+  emitOpAndConstant(ref, OP_CLOSURE, OP_CLOSURE_LONG);
 }
 
 static void patchJump(int offset) {
@@ -474,8 +462,7 @@ static void defineVariable(VariableRef ref) {
     return;
   }
 
-  emitOpOrOpLong(ref.as.global, OP_DEFINE_GLOBAL, OP_DEFINE_GLOBAL_LONG);
-  emitConstantReference(ref.as.global);
+  emitOpAndConstant(ref.as.global, OP_DEFINE_GLOBAL, OP_DEFINE_GLOBAL_LONG);
 }
 
 static uint8_t argumentList() {
@@ -561,37 +548,73 @@ static void method() {
   } else {
     ConstRef ref = identifierConstant(&parser.previous);
     function(TYPE_METHOD);
-    emitOpOrOpLong(ref, OP_METHOD, OP_METHOD_LONG);
-    emitConstantReference(ref);
+    emitOpAndConstant(ref, OP_METHOD, OP_METHOD_LONG);
   }
 }
 
 static void namedVariable(Token name, bool canAssign);
 static void variable(bool canAssign);
 
+static Token syntheticToken(const char *text) {
+  Token token;
+  token.start = text;
+  token.length = strlen(text);
+  return token;
+}
+
+static void super_(bool canAssign) {
+  if (currentClass == nullptr)
+    error("Can't use 'super' outside of a class.");
+  else if (!currentClass->hasSuperclass)
+    error("Can't use 'super' in a class with no superclass.");
+
+  consume(TOKEN_DOT, "Expect '.' after 'super'.");
+  consume(TOKEN_IDENTIFIER, "Expect superclass method name.");
+  ConstRef ref = identifierConstant(&parser.previous);
+
+  namedVariable(syntheticToken("this"), false);
+
+  if (match(TOKEN_LEFT_PAREN)) {
+    uint8_t argCout = argumentList();
+    namedVariable(syntheticToken("super"), false);
+    emitOpAndConstant(ref, OP_SUPER_INVOKE, OP_SUPER_INVOKE_LONG);
+    emitByte(argCout);
+  } else {
+    namedVariable(syntheticToken("super"), false);
+    emitOpAndConstant(ref, OP_GET_SUPER, OP_GET_SUPER_LONG);
+  }
+}
+
 static void classDeclaration() {
   Token className = parser.current;
   ConstRef nameConstant = identifierConstant(&className);
   VariableRef ref = parseVariable("Expected class name.");
 
-  emitOpOrOpLong(nameConstant, OP_CLASS, OP_CLASS_LONG);
-  emitConstantReference(nameConstant);
+  emitOpAndConstant(nameConstant, OP_CLASS, OP_CLASS_LONG);
 
   defineVariable(ref);
 
   ClassCompiler classCompiler;
   classCompiler.enclosing = currentClass;
+  classCompiler.hasSuperclass = false;
   currentClass = &classCompiler;
 
   if (match(TOKEN_LESS)) {
     consume(TOKEN_IDENTIFIER, "Expect superclass name.");
     variable(false);
-    namedVariable(className, false);
 
     if (identifiersEqual(&className, &parser.previous))
       error("A class can't inherit from itself.");
 
+    beginScope();
+    addLocal(syntheticToken("super"), true);
+    VariableRef ref = {.type = VAR_LOCAL, .readonly = true};
+    defineVariable(ref);
+
+    namedVariable(className, false);
     emitByte(OP_INHERIT);
+
+    classCompiler.hasSuperclass = true;
   }
 
   namedVariable(className, false);
@@ -604,6 +627,9 @@ static void classDeclaration() {
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
 
   emitByte(OP_POP); // Pop the class from the stack
+
+  if (classCompiler.hasSuperclass)
+    endScope();
 
   currentClass = currentClass->enclosing;
 }
@@ -936,16 +962,13 @@ static void dot(bool canAssign) {
 
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
-    emitOpOrOpLong(ref, OP_SET_PROP, OP_SET_PROP_LONG);
-    emitConstantReference(ref);
+    emitOpAndConstant(ref, OP_SET_PROP, OP_SET_PROP_LONG);
   } else if (match(TOKEN_LEFT_PAREN)) {
     uint8_t argCount = argumentList();
-    emitOpOrOpLong(ref, OP_INVOKE, OP_INVOKE_LONG);
-    emitConstantReference(ref);
+    emitOpAndConstant(ref, OP_INVOKE, OP_INVOKE_LONG);
     emitByte(argCount);
   } else {
-    emitOpOrOpLong(ref, OP_GET_PROP, OP_GET_PROP_LONG);
-    emitConstantReference(ref);
+    emitOpAndConstant(ref, OP_GET_PROP, OP_GET_PROP_LONG);
   }
 }
 
@@ -1021,28 +1044,13 @@ static void upvalueVariable(int index, bool canAssign) {
 }
 
 static void globalVariable(Token name, bool canAssign) {
-  ConstRef arg = identifierConstant(&name);
+  ConstRef ref = identifierConstant(&name);
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
-    switch (arg.type) {
-    case CONST:
-      emitByte(OP_SET_GLOBAL);
-      break;
-    case CONST_LONG:
-      emitByte(OP_SET_GLOBAL_LONG);
-      break;
-    }
+    emitOpAndConstant(ref, OP_SET_GLOBAL, OP_SET_GLOBAL_LONG);
   } else {
-    switch (arg.type) {
-    case CONST:
-      emitByte(OP_GET_GLOBAL);
-      break;
-    case CONST_LONG:
-      emitByte(OP_GET_GLOBAL_LONG);
-      break;
-    }
+    emitOpAndConstant(ref, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
   }
-  emitConstantReference(arg);
 }
 
 static void namedVariable(Token name, bool canAssign) {
@@ -1127,7 +1135,7 @@ ParseRule rules[] = {
     [TOKEN_OR] = {nullptr, or_, PREC_OR},
     [TOKEN_PRINT] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_RETURN] = {nullptr, nullptr, PREC_NONE},
-    [TOKEN_SUPER] = {nullptr, nullptr, PREC_NONE},
+    [TOKEN_SUPER] = {super_, nullptr, PREC_NONE},
     [TOKEN_THIS] = {this_, nullptr, PREC_NONE},
     [TOKEN_TRUE] = {literal, nullptr, PREC_NONE},
     [TOKEN_LET] = {nullptr, nullptr, PREC_NONE},

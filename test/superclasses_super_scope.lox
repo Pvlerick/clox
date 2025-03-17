@@ -1,0 +1,21 @@
+class A {
+  method() {
+    return "A method";
+  }
+}
+
+class B < A {
+  method() {
+    return "B method";
+  }
+
+  test() {
+    return super.method();
+  }
+}
+
+class C < B {}
+
+if (C().test() != "A method") {
+  exit(1);
+}
