@@ -1,4 +1,5 @@
 #include "vm.h"
+#include "assembly.h"
 #include "chunk.h"
 #include "compiler.h"
 #include "memory.h"
@@ -753,6 +754,9 @@ static InterpretResult run() {
 
 InterpretResult interpret(const char *source) {
   ObjFunction *fun = compile(source);
+
+  writeAssembly(fun, "/tmp/prog.casm");
+  ObjFunction *fn = readAssembly("/tmp/prog.casm");
 
   if (fun == nullptr) {
     return INTERPRET_COMPILE_ERROR;
