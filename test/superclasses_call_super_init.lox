@@ -1,0 +1,15 @@
+class Doughnut {
+  init(topping) {
+    this.topping = topping;
+  }
+}
+
+class BostonCream < Doughnut {
+  init(filling) {
+    super.init("chocolate");
+    this.filling = filling;
+  }
+}
+
+var bc = BostonCream("custard");
+print "Topped with " + bc.topping + " and filled with " + bc.filling;

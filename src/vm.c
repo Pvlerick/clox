@@ -327,13 +327,11 @@ static void defineMethod(ObjString *name) {
   Value method = peek(0);
   ObjClass *klass = AS_CLASS(peek(1));
   tableSet(&klass->methods, name, method);
-  pop();
-}
 
-static void defineInit() {
-  Value init = peek(0);
-  ObjClass *klass = AS_CLASS(peek(1));
-  klass->init = AS_OBJ(init);
+  if (strncmp(getCString(name), getCString(vm.initString),
+              vm.initString->length) == 0)
+    klass->init = AS_OBJ(method);
+
   pop();
 }
 
@@ -738,7 +736,7 @@ static InterpretResult run() {
       defineMethod(READ_STRING_LONG());
       break;
     case OP_INIT:
-      defineInit();
+      defineMethod(vm.initString);
       break;
 
 #undef BINARY_OP
