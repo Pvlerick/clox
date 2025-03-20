@@ -222,7 +222,9 @@ static bool callValue(Value callee, int argCount) {
       if (klass->init != nullptr) {
         return call(klass->init, argCount);
       } else if (argCount != 0) {
-        runtimeError("Expect 0 arguments but got %d.", argCount);
+        runtimeError("No class init defined for %.*s, but got an init call "
+                     "with %d arguments.",
+                     klass->name->length, getCString(klass->name), argCount);
         return false;
       } else {
         return true;
