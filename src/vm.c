@@ -140,6 +140,11 @@ static void runtimeError(const char *format, ...) {
   resetStack();
 }
 
+static inline bool isInit(ObjString *name) {
+  return strncmp(getCString(name), getCString(vm.initString),
+                 vm.initString->length) == 0;
+}
+
 void push(Value value) { pushOnStack(&vm.stack, value); }
 Value pop() { return popFromStack(&vm.stack); }
 
@@ -276,12 +281,15 @@ static bool invoke(ObjString *name, int argCount) {
 }
 
 static bool bindMethod(ObjClass *klass, ObjString *name) {
+  ObjBoundMethod *bound;
   Value method;
-  if (!tableGet(&klass->methods, name, &method)) {
+  if (isInit(name)) {
+    bound = newBoundMethod(peek(0), klass->init);
+  } else if (tableGet(&klass->methods, name, &method)) {
+    bound = newBoundMethod(peek(0), AS_OBJ(method));
+  } else {
     return false;
   }
-
-  ObjBoundMethod *bound = newBoundMethod(peek(0), AS_OBJ(method));
 
   pop();
   push(OBJ_VAL(bound));
@@ -328,8 +336,7 @@ static void defineMethod(ObjString *name) {
   ObjClass *klass = AS_CLASS(peek(1));
   tableSet(&klass->methods, name, method);
 
-  if (strncmp(getCString(name), getCString(vm.initString),
-              vm.initString->length) == 0)
+  if (isInit(name))
     klass->init = AS_OBJ(method);
 
   pop();
