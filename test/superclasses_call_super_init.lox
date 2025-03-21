@@ -5,11 +5,16 @@ class Doughnut {
 }
 
 class BostonCream < Doughnut {
-  init(filling) {
-    super.init("chocolate");
+  init(topping, filling) : super(topping) {
     this.filling = filling;
   }
 }
 
-var bc = BostonCream("custard");
-print "Topped with " + bc.topping + " and filled with " + bc.filling;
+class SuperCream < BostonCream {
+  init (topping, filling, moreFilling) : super(topping, filling) {
+    this.moreFilling = moreFilling;
+  }
+}
+
+var sc = SuperCream("chocolate", "custard", "whipped cream");
+print "Topped with " + sc.topping + " and filled with " + sc.filling + " and " + sc.moreFilling;
