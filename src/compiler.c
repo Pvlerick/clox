@@ -108,7 +108,7 @@ typedef struct Compiler {
 
 typedef struct ClassCompiler {
   struct ClassCompiler *enclosing;
-  bool hasSuperclass;
+  ObjString *superclass;
 } ClassCompiler;
 
 Parser parser;
@@ -519,6 +519,29 @@ static void function(FunctionType type) {
   }
 
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+
+  if (type == TYPE_INITIALIZER && !check(TOKEN_LEFT_BRACE)) {
+    if (currentClass->superclass == nullptr)
+      errorAtCurrent("Can only call superclass init inside a derived class.");
+
+    consume(TOKEN_COLON, "Expect ':' after init in derived class.");
+    consume(TOKEN_SUPER,
+            "Expect 'super' to call superclass init automatically.");
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'super'.");
+
+    emitBytes(OP_GET_LOCAL, 0); // Instance is stored at slot 0
+
+    uint8_t argCout = argumentList();
+
+    ConstRef superclass = makeConstant(OBJ_VAL(currentClass->superclass));
+    emitOpAndConstant(superclass, OP_GET_GLOBAL, OP_GET_GLOBAL_LONG);
+
+    ConstRef ref = makeConstant(OBJ_VAL(vm.initString));
+    emitOpAndConstant(ref, OP_SUPER_INVOKE, OP_SUPER_INVOKE_LONG);
+    emitByte(argCout);
+    emitByte(OP_POP);
+  }
+
   consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
 
   block();
@@ -552,8 +575,8 @@ static void method() {
   }
 }
 
-static void namedVariable(Token name, bool canAssign);
 static void variable(bool canAssign);
+static void namedVariable(Token name, bool canAssign);
 
 static Token syntheticToken(const char *text) {
   Token token;
@@ -565,7 +588,7 @@ static Token syntheticToken(const char *text) {
 static void super_(bool canAssign) {
   if (currentClass == nullptr)
     error("Can't use 'super' outside of a class.");
-  else if (!currentClass->hasSuperclass)
+  else if (currentClass->superclass == nullptr)
     error("Can't use 'super' in a class with no superclass.");
 
   consume(TOKEN_DOT, "Expect '.' after 'super'.");
@@ -596,7 +619,7 @@ static void classDeclaration() {
 
   ClassCompiler classCompiler;
   classCompiler.enclosing = currentClass;
-  classCompiler.hasSuperclass = false;
+  classCompiler.superclass = nullptr;
   currentClass = &classCompiler;
 
   if (match(TOKEN_LESS)) {
@@ -606,6 +629,9 @@ static void classDeclaration() {
     if (identifiersEqual(&className, &parser.previous))
       error("A class can't inherit from itself.");
 
+    classCompiler.superclass =
+        borrowString(parser.previous.start, parser.previous.length);
+
     beginScope();
     addLocal(syntheticToken("super"), true);
     VariableRef ref = {.type = VAR_LOCAL, .readonly = true};
@@ -613,8 +639,6 @@ static void classDeclaration() {
 
     namedVariable(className, false);
     emitByte(OP_INHERIT);
-
-    classCompiler.hasSuperclass = true;
   }
 
   namedVariable(className, false);
@@ -628,7 +652,7 @@ static void classDeclaration() {
 
   emitByte(OP_POP); // Pop the class from the stack
 
-  if (classCompiler.hasSuperclass)
+  if (classCompiler.superclass != nullptr)
     endScope();
 
   currentClass = currentClass->enclosing;
