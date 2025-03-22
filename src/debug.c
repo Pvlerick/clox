@@ -71,37 +71,43 @@ static int jumpInstruction(const char *name, int sign, Chunk *chunk,
 }
 
 static int constantInstruction(const char *name, Chunk *chunk, int offset) {
-  uint8_t codeIndex = chunk->code[offset + 1];
-  debug("%-16s %4d '", name, codeIndex);
-  printValue(chunk->constants.values[codeIndex]);
+  uint8_t constant = chunk->code[offset + 1];
+  debug("%-16s %4d '", name, constant);
+  printValue(chunk->constants.values[constant]);
   debug("'\n");
   return offset + 2;
 }
 
 static int longConstantInstruction(const char *name, Chunk *chunk, int offset) {
-  uint16_t *codeIndex = (uint16_t *)&chunk->code[offset + 1];
-  debug("%-16s %4d '", name, *codeIndex);
-  printValue(chunk->constants.values[*codeIndex]);
+  uint16_t *constant = (uint16_t *)&chunk->code[offset + 1];
+  debug("%-16s %4d '", name, *constant);
+  printValue(chunk->constants.values[*constant]);
   debug("'\n");
   return offset + 3;
 }
 
 static int invokeInstruction(const char *name, Chunk *chunk, int offset) {
-  uint8_t codeIndex = chunk->code[offset + 1];
+  uint8_t constant = chunk->code[offset + 1];
   uint8_t argCount = chunk->code[offset + 2];
-  debug("%-16s %4d '", name, codeIndex);
-  printValue(chunk->constants.values[codeIndex]);
-  debug("'\n");
+  debug("%-16s %4d '", name, constant);
+  printValue(chunk->constants.values[constant]);
+  debug("' [%d args]\n", argCount);
   return offset + 3;
 }
 
 static int longInvokeInstruction(const char *name, Chunk *chunk, int offset) {
-  uint16_t *codeIndex = (uint16_t *)&chunk->code[offset + 1];
+  uint16_t *constant = (uint16_t *)&chunk->code[offset + 1];
   uint8_t argCount = chunk->code[offset + 3];
-  debug("%-16s %4d '", name, *codeIndex);
-  printValue(chunk->constants.values[*codeIndex]);
-  debug("'\n");
+  debug("%-16s %4d '", name, *constant);
+  printValue(chunk->constants.values[*constant]);
+  debug("' [%d args]\n", argCount);
   return offset + 4;
+}
+
+static int invokeInnerInstrction(const char *name, Chunk *chunk, int offset) {
+  uint8_t argCount = chunk->code[offset + 1];
+  debug("%-16s %4d [%d args]\n", name, argCount);
+  return offset + 1;
 }
 
 static int closureParameters(Chunk *chunk, int offset, int codeIndex) {
@@ -233,6 +239,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
   case OP_SUPER_INVOKE_LONG:
     return longInvokeInstruction("OP_SUPER_INVOKE_LONG", chunk, offset);
+  case OP_INNER_INVOKE:
+    return invokeInnerInstrction("OP_INNER_INVOKE", chunk, offset);
   case OP_CLOSURE:
     return closureInstruction("OP_CLOSURE", chunk, offset);
   case OP_CLOSURE_LONG:

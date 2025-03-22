@@ -608,6 +608,16 @@ static void super_(bool canAssign) {
   }
 }
 
+static void inner(bool canAssign) {
+  if (currentClass == nullptr)
+    error("can't use 'inner' outside of a class.");
+
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'inner'.");
+  int argCount = argumentList();
+  emitBytes(OP_INNER_INVOKE, argCount);
+  emitByte(OP_POP);
+}
+
 static void classDeclaration() {
   Token className = parser.current;
   ConstRef nameConstant = identifierConstant(&className);
@@ -1160,6 +1170,7 @@ ParseRule rules[] = {
     [TOKEN_PRINT] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_RETURN] = {nullptr, nullptr, PREC_NONE},
     [TOKEN_SUPER] = {super_, nullptr, PREC_NONE},
+    [TOKEN_INNER] = {inner, nullptr, PREC_NONE},
     [TOKEN_THIS] = {this_, nullptr, PREC_NONE},
     [TOKEN_TRUE] = {literal, nullptr, PREC_NONE},
     [TOKEN_LET] = {nullptr, nullptr, PREC_NONE},

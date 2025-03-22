@@ -209,7 +209,7 @@ static bool call(Obj *obj, int argCount) {
   case OBJ_CLOSURE:
     return callClosure((ObjClosure *)obj, argCount);
   default:
-    runtimeError("Unknown bound method type.");
+    runtimeError("Unknown bound method type: %d.", obj->type);
     return false;
   }
 }
@@ -280,6 +280,31 @@ static bool invoke(ObjString *name, int argCount) {
   return invokeFromClass(instance->klass, name, argCount);
 }
 
+StringRef innerTag = {.length = 1, .content = "<"};
+
+static bool invokeInner(ObjString *name, int argCount) {
+  ObjString *inner = name;
+  for (int i = 1; i < vm.frameCount; i++)
+    inner = allocateString(inner->length + 1, 2, toStringRef(inner), innerTag);
+
+  Value receiver = peek(argCount);
+
+  if (!IS_INSTANCE(receiver)) {
+    runtimeError("Only instances have methods.");
+    return false;
+  }
+
+  ObjInstance *instance = AS_INSTANCE(receiver);
+  Value method;
+  if (!tableGet(&instance->klass->methods, inner, &method)) {
+    runtimeError("Undefined property '%.*s'.", inner->length,
+                 getCString(inner));
+    return false;
+  }
+
+  return call(AS_OBJ(method), argCount);
+}
+
 static bool bindMethod(ObjClass *klass, ObjString *name) {
   ObjBoundMethod *bound;
   Value method;
@@ -334,6 +359,10 @@ static void closeUpvalue(int valueStackIndex) {
 static void defineMethod(ObjString *name) {
   Value method = peek(0);
   ObjClass *klass = AS_CLASS(peek(1));
+  Value existing;
+  while (tableGet(&klass->methods, name, &existing))
+    name = allocateString(name->length + 1, 2, toStringRef(name), innerTag);
+
   tableSet(&klass->methods, name, method);
 
   if (isInit(name))
@@ -658,6 +687,16 @@ static InterpretResult run() {
       int argCount = READ_BYTE();
       ObjClass *superclass = AS_CLASS(pop());
       if (!invokeFromClass(superclass, method, argCount))
+        return INTERPRET_RUNTIME_ERROR;
+      frame->ip = ip;
+      frame = &vm.frames[vm.frameCount - 1];
+      ip = frame->ip;
+      break;
+    }
+    case OP_INNER_INVOKE: {
+      ObjString *method = GET_CALLEE(frame)->name;
+      int argCout = READ_BYTE();
+      if (!invokeInner(method, argCout))
         return INTERPRET_RUNTIME_ERROR;
       frame->ip = ip;
       frame = &vm.frames[vm.frameCount - 1];
