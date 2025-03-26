@@ -1,3 +1,4 @@
 clox
 test-mmm
 test/sb.lox
+perf.data*
