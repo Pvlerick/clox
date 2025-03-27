@@ -46,7 +46,30 @@ void valueArrayDump(ValueArray *array) {
   }
 }
 
+#ifdef NAN_BOXING
+static void asBinary(uint64_t number, char binary[65]) {
+  for (int i = 63; i >= 0; i--)
+    binary[63 - i] = (number & (1ULL << i)) ? '1' : '0';
+  binary[64] = '\0';
+}
+#endif
+
 void printValue(Value value) {
+#ifdef NAN_BOXING
+  if (IS_BOOL(value)) {
+    printf("%s", AS_BOOL(value) ? "true" : "false");
+  } else if (IS_NIL(value)) {
+    printf("nil");
+  } else if (IS_NUMBER(value)) {
+    printf("%g", AS_NUMBER(value));
+  } else if (IS_OBJ(value)) {
+    printObject(value);
+  } else {
+    char binary[65];
+    asBinary(value, binary);
+    err(64, "Unhandeled value type: '%s'", binary);
+  }
+#else
   switch (value.type) {
   case VAL_BOOL:
     printf("%s", AS_BOOL(value) ? "true" : "false");
@@ -61,12 +84,19 @@ void printValue(Value value) {
     printObject(value);
     break;
   default:
-    err(64, "Unhandeled value type: '%d'", value.type);
+    err(64, "Unhandeled value type '%d'", value.type);
     break;
   }
+#endif
 }
 
 bool valuesEqual(Value a, Value b) {
+#ifdef NAN_BOXING
+  if (IS_NUMBER(a) && IS_NUMBER(b)) {
+    return AS_NUMBER(a) == AS_NUMBER(b);
+  }
+  return a == b;
+#else
   if (a.type != b.type)
     return false;
 
@@ -82,4 +112,5 @@ bool valuesEqual(Value a, Value b) {
   default:
     return false;
   }
+#endif
 }

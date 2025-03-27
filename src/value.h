@@ -2,10 +2,56 @@
 #define clox_value_h
 
 #include "common.h"
+#include <string.h>
 
 typedef struct Obj Obj;
 typedef struct ObjFunction ObjFunction;
 typedef struct ObjString ObjString;
+
+#ifdef NAN_BOXING
+
+#define SIGN_BIT ((uint64_t)0x8000000000000000)
+//#define QNAN 18446744073709027328##U
+#define QNAN ((uint64_t)0x7ffc000000000000)
+
+#define TAG_NIL   1 // 01
+#define TAG_FALSE 2 // 10
+#define TAG_TRUE  3 // 11
+
+typedef uint64_t Value;
+
+#define NUMBER_VAL(num) numToValue(num)
+#define AS_NUMBER(value) valueToNum(value)
+#define IS_NUMBER(value) (((value) & QNAN) != QNAN)
+
+#define BOOL_VAL(b) ((b) ? TRUE_VAL : FALSE_VAL)
+#define FALSE_VAL ((Value)(uint64_t)(QNAN | TAG_FALSE))
+#define TRUE_VAL ((Value)(uint64_t)(QNAN | TAG_TRUE))
+#define AS_BOOL(value) ((value) == TRUE_VAL)
+#define IS_BOOL(value) (((value) | 1) == TRUE_VAL)
+
+#define NIL_VAL ((Value)(uint64_t)(QNAN | TAG_NIL))
+#define IS_NIL(value) ((value) == NIL_VAL)
+
+#define OBJ_VAL(obj) (Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj))
+#define AS_OBJ(value) ((Obj*)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
+#define IS_OBJ(value) (((value) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
+
+//TODO Why no simple reinterpret the bytes??
+static inline double valueToNum(Value value) {
+  double num;
+  memcpy(&num, &value, sizeof(double));
+  return num;
+}
+
+//TODO Why no simple reinterpret the bytes??
+static inline Value numToValue(double num) {
+  Value value;
+  memcpy(&value, &num, sizeof(Value));
+  return value;
+}
+
+#else
 
 typedef enum {
   VAL_BOOL,
@@ -36,6 +82,8 @@ typedef struct {
 #define NIL_VAL ((Value){VAL_NIL, {.number = 0}})
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
 #define OBJ_VAL(value) ((Value){VAL_OBJ, {.obj = (Obj*)value}})
+
+#endif
 
 typedef struct {
   int capacity;
