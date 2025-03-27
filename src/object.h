@@ -135,7 +135,6 @@ static inline const char *getCString(ObjString *string) {
   return string->isBorrowed ? *(char **)string->content : string->content;
 }
 
-#ifdef DEBUG_LOG_GC
 static inline const char *getType(ObjType type) {
   switch (type) {
   case OBJ_BOUND_METHOD:
@@ -156,6 +155,5 @@ static inline const char *getType(ObjType type) {
     return "upvalue";
   }
 }
-#endif
 
 #endif

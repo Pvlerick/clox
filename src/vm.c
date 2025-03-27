@@ -250,7 +250,7 @@ static bool callValue(Value callee, int argCount) {
       push(result);
       return true;
     default:
-      runtimeError("Unexpected OBJ_TYPE value: %d.", OBJ_TYPE(callee));
+      runtimeError("Cannot call object type '%s'.", getType(OBJ_TYPE(callee)));
       break;
     }
   }
@@ -277,6 +277,12 @@ static bool invoke(ObjString *name, int argCount) {
   }
 
   ObjInstance *instance = AS_INSTANCE(receiver);
+
+  Value value;
+  if (tableGet(&instance->fields, name, &value)) {
+    return callValue(value, argCount);
+  }
+
   return invokeFromClass(instance->klass, name, argCount);
 }
 

@@ -1061,6 +1061,7 @@ static void upvalueVariable(int index, bool canAssign) {
   if (canAssign && match(TOKEN_EQUAL)) {
     if (current->upvalues[index].readonly)
       error("Invalid assignment target: readonly captured variable.");
+    expression();
     emitBytes(OP_SET_UPVALUE, index);
   } else {
     emitBytes(OP_GET_UPVALUE, index);
@@ -1086,7 +1087,7 @@ static void namedVariable(Token name, bool canAssign) {
 
   index = resolveUpvalue(current, &name);
   if (index != -1) {
-    upvalueVariable(index, current->upvalues[index].readonly);
+    upvalueVariable(index, !current->upvalues[index].readonly);
     return;
   }
 
@@ -1184,8 +1185,8 @@ static void parsePrecedence(Precedence precedence) {
 
   while (precedence <= getRule(parser.current.type)->precedence) {
     advance();
-    ParseFn infifRule = getRule(parser.previous.type)->infix;
-    infifRule(canAssign);
+    ParseFn infixRule = getRule(parser.previous.type)->infix;
+    infixRule(canAssign);
   }
 
   if (canAssign && match(TOKEN_EQUAL)) {

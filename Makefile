@@ -1,4 +1,4 @@
-.PHONY: build build-debug build-trace build-nommm clean run debug trace test-mmm test-table run-nommm
+.PHONY: build build-debug build-trace build-nommm clean run debug trace test-mmm test-table test-all test-suite test-bench run-nommm
 
 main = src/main.c
 objects = src/chunk.c src/debug.c src/line.c src/memory.c src/value.c src/vm.c src/stack.c src/compiler.c src/scanner.c src/object.c src/table.c src/mmm.c
@@ -60,6 +60,35 @@ test-all:
 		if [ -f "$$file" ]; then \
 			echo -n "Running negative test $$file... "; \
 			{ ./clox $$file > /dev/null 2>&1 || echo "ok"; } \
+			|| { echo "failed"; exit 1; }; \
+		fi; \
+	done
+
+test-suite:
+	$(MAKE) clean
+	$(MAKE) build
+	for file in $$(find "test/suite" -type f -name "*.lox"); do \
+		if [ -f "$$file" ]; then \
+			echo -n "Running test $$file... "; \
+			{ ./clox $$file > /dev/null && echo "ok"; } \
+			|| { echo "failed"; exit 1; }; \
+		fi; \
+	done
+	for file in $$(find "test/suite" -type f -name "*.xol"); do \
+		if [ -f "$$file" ]; then \
+			echo -n "Running negative test $$file... "; \
+			{ ./clox $$file > /dev/null 2>&1 || echo "ok"; } \
+			|| { echo "failed"; exit 1; }; \
+		fi; \
+	done
+
+test-bench:
+	$(MAKE) clean
+	$(MAKE) build
+	for file in $$(find "bench/" -type f -name "*.lox"); do \
+		if [ -f "$$file" ]; then \
+			echo -n "Running bench  $$file... "; \
+			{ ./clox $$file > /dev/null && echo "ok"; } \
 			|| { echo "failed"; exit 1; }; \
 		fi; \
 	done

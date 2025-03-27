@@ -199,7 +199,7 @@ TokenType identifierType() {
 }
 
 Token identifier() {
-  while (isAlpha(peek()) && !isAtEnd())
+  while ((isAlpha(peek()) || isDigit(peek())) && !isAtEnd())
     advance();
 
   return makeToken(identifierType());
