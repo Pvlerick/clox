@@ -31,16 +31,25 @@ static Value clockNative(int argCount, Value *args) {
 }
 
 static Value envNative(int argCount, Value *args) {
-  if (!IS_STRING(*args)) {
+  if (!IS_STRING(*args) && !IS_SHORT_STRING(*args)) {
     runtimeError("argument to 'env' native function must be a string.");
   }
 
-  const char *name = copyString(AS_STRING(*args));
-  const char *var = getenv(name);
-  free((void *)name);
+  const char *var;
+  if (IS_STRING(*args)) {
+    const char *name = copyString(AS_STRING(*args));
+    var = getenv(name);
+    free((void *)name);
+  } else {
+    const char *var = getenv(AS_SHORT_STRING(*args));
+  }
 
   if (var != nullptr) {
-    return OBJ_VAL(newOwnedString(var, strlen(var)));
+    int len = strlen(var);
+    if (len < 5)
+      return SHORT_STRING_VAL(var, len);
+    else
+      return OBJ_VAL(newOwnedString(var, len));
   }
 
   return NIL_VAL;
@@ -352,12 +361,21 @@ static bool isFalsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
-static void concatenate() {
-  ObjString *b = AS_STRING(peek(0));
-  ObjString *a = AS_STRING(peek(1));
+static StringRef asStringRef(Value value) {
+  if (value.type == VAL_SHORT_STRING) {
+    const char *str = AS_SHORT_STRING(value);
+    StringRef ref = {.length = strlen(str), .content = str};
+    return ref;
+  } else {
+    return toStringRef(AS_STRING(value));
+  }
+}
 
-  ObjString *result =
-      allocateString(a->length + b->length, 2, toStringRef(a), toStringRef(b));
+static void concatenate() {
+  StringRef b = asStringRef(peek(0));
+  StringRef a = asStringRef(peek(1));
+
+  ObjString *result = allocateString(a.length + b.length, 2, a, b);
 
   pop();
   pop();
@@ -587,7 +605,8 @@ static InterpretResult run() {
       BINARY_OP(BOOL_VAL, <);
       break;
     case OP_ADD:
-      if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+      if ((IS_STRING(peek(0)) || IS_SHORT_STRING(peek(0))) &&
+          (IS_STRING(peek(1)) || IS_SHORT_STRING(peek(0)))) {
         concatenate();
       } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
         double b = AS_NUMBER(pop());

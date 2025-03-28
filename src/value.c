@@ -80,6 +80,9 @@ void printValue(Value value) {
   case VAL_NUMBER:
     printf("%g", AS_NUMBER(value));
     break;
+  case VAL_SHORT_STRING:
+    printf("%s", AS_SHORT_STRING(value));
+    break;
   case VAL_OBJ:
     printObject(value);
     break;
@@ -107,6 +110,8 @@ bool valuesEqual(Value a, Value b) {
     return true;
   case VAL_NUMBER:
     return AS_NUMBER(a) == AS_NUMBER(b);
+  case VAL_SHORT_STRING:
+    return strncmp(a.as.str, b.as.str, 4) == 0;
   case VAL_OBJ:
     return AS_OBJ(a) == AS_OBJ(b);
   default:

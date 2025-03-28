@@ -973,10 +973,15 @@ static void call(bool canAssign) {
 }
 
 static Value parseString(Token token) {
-  return OBJ_VAL(borrowString(token.start + 1, token.length - 2));
+  if (token.length < 7) // STR max len is 4 but token includes the double quotes
+    return SHORT_STRING_VAL(token.start + 1, token.length - 2);
+  else
+    return OBJ_VAL(borrowString(token.start + 1, token.length - 2));
 }
 
 static void string(bool canAssign) {
+  Value val = parseString(parser.previous);
+  printf("val type: %d\n", val.type);
   emitConstant(parseString(parser.previous));
 }
 
