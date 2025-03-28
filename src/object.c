@@ -155,7 +155,7 @@ ObjString *allocateString(int length, int count, ...) {
   return string;
 }
 
-ObjString *borrowString(const char *chars, int length) {
+ObjString *borrowString(const char *const chars, int length) {
   uint32_t hash = hashString(chars, length);
 
   ObjString *interned = tableFindString(&vm.strings, chars, length, hash);

@@ -1,0 +1,14 @@
+class C {
+}
+
+var c = C();
+
+c["one"] = "hello";
+print c.one;
+print c["one"];
+print c["on" + "e"];
+var p = "on";
+var q = "e";
+print c[p + q];
+print c[p + "e"];
+print c["on" + q];

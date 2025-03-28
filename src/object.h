@@ -120,7 +120,7 @@ ObjNative *newNative(NativeFn fun, int arity);
 ObjString *newOwnedString(const char *start, size_t length);
 ObjString *allocateString(int length, int count, ...);
 StringRef toStringRef(ObjString *string);
-ObjString *borrowString(const char* chars, int length);
+ObjString *borrowString(const char *const chars, int length);
 uint32_t hashString(const char *key, int length);
 const char *copyString(ObjString *string);
 void debugString(ObjString *string);
