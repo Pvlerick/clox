@@ -2,6 +2,9 @@
 #define clox_value_h
 
 #include "common.h"
+#include <stdlib.h>
+#include <err.h>
+#include <stdio.h>
 #include <string.h>
 
 typedef struct Obj Obj;
@@ -14,10 +17,10 @@ typedef struct ObjString ObjString;
 //#define QNAN 18446744073709027328##U
 #define QNAN ((uint64_t)0x7ffc000000000000)
 
-#define TAG_NIL       1 // 001
-#define TAG_FALSE     2 // 010
-#define TAG_TRUE      3 // 011
-#define TAG_SHORT_STR 4 // 100
+#define TAG_NIL          1 // 001
+#define TAG_FALSE        2 // 010
+#define TAG_TRUE         3 // 011
+#define TAG_SHORT_STRING 4 // 100
 
 typedef uint64_t Value;
 
@@ -31,9 +34,9 @@ typedef uint64_t Value;
 #define AS_BOOL(value) ((value) == TRUE_VAL)
 #define IS_BOOL(value) (((value) | 1) == TRUE_VAL)
 
-#define SHORTSTR_VAL(c, l) charToStr(c, l)
-#define AS_SHORTSTR(value) ((Value)(uint64_t)(QNAN | TAG_SHOR_STR))
-#define IS_SHORTSTR(value) ((value) & QNAN | TAG_SHOR_STR == (QNAN | TAG_SHOR_STR))
+#define SHORT_STRING_VAL(start, length) charToStr(start, length)
+#define AS_SHORT_STRING(value) ((char *)(&value) + 1)
+#define IS_SHORT_STRING(value) ((value) & QNAN | TAG_SHORT_STRING == (QNAN | TAG_SHORT_STRING))
 
 #define NIL_VAL ((Value)(uint64_t)(QNAN | TAG_NIL))
 #define IS_NIL(value) ((value) == NIL_VAL)
@@ -55,6 +58,21 @@ static inline Value numToValue(double num) {
   memcpy(&value, &num, sizeof(Value));
   return value;
 }
+
+static Value charToStr(const char *start, int length) {
+  if (length > 4)
+    err(EXIT_FAILURE, "Cannot call charToStr with a string longer than 4\n");
+
+  Value val = 0 | QNAN | TAG_SHORT_STRING;
+  char *ptr = ((char *)&val) + 1;
+
+  memcpy(ptr, start, length);
+
+  ptr[length] = '\0';
+
+  return val;
+}
+
 
 #else
 

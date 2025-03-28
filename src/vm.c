@@ -362,7 +362,7 @@ static bool isFalsey(Value value) {
 }
 
 static StringRef asStringRef(Value value) {
-  if (value.type == VAL_SHORT_STRING) {
+  if (IS_SHORT_STRING(value)) {
     const char *str = AS_SHORT_STRING(value);
     StringRef ref = {.length = strlen(str), .content = str};
     return ref;

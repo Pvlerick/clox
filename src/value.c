@@ -62,6 +62,8 @@ void printValue(Value value) {
     printf("nil");
   } else if (IS_NUMBER(value)) {
     printf("%g", AS_NUMBER(value));
+  } else if (IS_SHORT_STRING(value)) {
+    printf("%s", AS_SHORT_STRING(value));
   } else if (IS_OBJ(value)) {
     printObject(value);
   } else {

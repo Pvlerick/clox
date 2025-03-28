@@ -341,7 +341,10 @@ static ParseRule *getRule(TokenType);
 static void parsePrecedence(Precedence);
 
 static ConstRef identifierConstant(Token *name) {
-  return makeConstant(OBJ_VAL(borrowString(name->start, name->length)));
+  if (name->length < 5)
+    return makeConstant(SHORT_STRING_VAL(name->start, name->length));
+  else
+    return makeConstant(OBJ_VAL(borrowString(name->start, name->length)));
 }
 
 static bool identifiersEqual(Token *a, Token *b) {
@@ -980,8 +983,6 @@ static Value parseString(Token token) {
 }
 
 static void string(bool canAssign) {
-  Value val = parseString(parser.previous);
-  printf("val type: %d\n", val.type);
   emitConstant(parseString(parser.previous));
 }
 
