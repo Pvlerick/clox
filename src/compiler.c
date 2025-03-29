@@ -341,10 +341,7 @@ static ParseRule *getRule(TokenType);
 static void parsePrecedence(Precedence);
 
 static ConstRef identifierConstant(Token *name) {
-  if (name->length < 5)
-    return makeConstant(SHORT_STRING_VAL(name->start, name->length));
-  else
-    return makeConstant(OBJ_VAL(borrowString(name->start, name->length)));
+  return makeConstant(OBJ_VAL(borrowString(name->start, name->length)));
 }
 
 static bool identifiersEqual(Token *a, Token *b) {
