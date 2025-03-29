@@ -36,7 +36,7 @@ typedef uint64_t Value;
 
 #define SHORT_STRING_VAL(start, length) charToStr(start, length)
 #define AS_SHORT_STRING(value) ((char *)(&value) + 1)
-#define IS_SHORT_STRING(value) ((value) & QNAN | TAG_SHORT_STRING == (QNAN | TAG_SHORT_STRING))
+#define IS_SHORT_STRING(value) (((value) & (QNAN | TAG_SHORT_STRING)) == (QNAN | TAG_SHORT_STRING))
 
 #define NIL_VAL ((Value)(uint64_t)(QNAN | TAG_NIL))
 #define IS_NIL(value) ((value) == NIL_VAL)
